@@ -51,7 +51,9 @@ async def db_init():
         import asyncpg, ssl as _ssl
         dsn = DATABASE_URL.split("?")[0]            # sslmode 등 쿼리 제거
         ctx = _ssl.create_default_context()
-        _pool = await asyncpg.create_pool(dsn=dsn, ssl=ctx, min_size=1, max_size=5)
+        # statement_cache_size=0 : Neon/PgBouncer 풀러에서 prepared statement 충돌 방지
+        _pool = await asyncpg.create_pool(dsn=dsn, ssl=ctx, min_size=1, max_size=5,
+                                          statement_cache_size=0)
         async with _pool.acquire() as c:
             await c.execute("CREATE TABLE IF NOT EXISTS users("
                             "username text PRIMARY KEY, salt text, hash text, wins int DEFAULT 0)")
