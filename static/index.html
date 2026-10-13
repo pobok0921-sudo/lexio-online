@@ -353,6 +353,26 @@ function noise(o){
   src.connect(bf).connect(g).connect(a.destination);
   src.start(t0); src.stop(t0+dur+0.03);
 }
+/* 한국어 음성(TTS) — "패스" 등 외침 */
+let _voice=null, _voiceTry=0;
+function pickVoice(){
+  try{
+    const vs=speechSynthesis.getVoices();
+    _voice=vs.find(v=>/ko(-|_)?KR/i.test(v.lang))||vs.find(v=>/^ko/i.test(v.lang))||null;
+  }catch(e){}
+}
+if("speechSynthesis" in window){ pickVoice(); try{speechSynthesis.onvoiceschanged=pickVoice;}catch(e){} }
+function say(text,opt){
+  opt=opt||{};
+  if(muted||!("speechSynthesis" in window))return;
+  try{
+    if(!_voice && _voiceTry<5){ pickVoice(); _voiceTry++; }
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="ko-KR"; if(_voice)u.voice=_voice;
+    u.rate=opt.rate||1.08; u.pitch=opt.pitch||1.0; u.volume=opt.volume==null?1:opt.volume;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
 /* 타일 선택 틱 */
 function sfxSelect(){ tone({f0:1300,f1:1750,dur:0.05,type:"triangle",vol:0.07}); }
 /* 카드 내기: 쫀득한 '툭' + 상승 플럭 */
@@ -377,10 +397,12 @@ function sfxSparkle(){
     tone({f0:f*2,t:i*0.055,dur:0.3,type:"sine",vol:0.05}); });
   for(let i=0;i<8;i++) tone({f0:2000+Math.random()*1800,t:0.22+i*0.045,dur:0.3,type:"sine",vol:0.06});
 }
-/* 패스: 코믹한 하강 '뿅' */
+/* 패스: 코믹한 하강 '뿅' + "패스" 음성 외침 */
 function sfxPass(){
-  tone({f0:420,f1:150,dur:0.22,type:"sine",vol:0.16});
-  noise({f0:1200,f1:300,dur:0.2,type:"lowpass",vol:0.06});
+  tone({f0:460,f1:180,dur:0.2,type:"square",vol:0.14,lp:1800});
+  tone({f0:300,f1:130,dur:0.24,type:"sine",vol:0.12});
+  noise({f0:1400,f1:300,dur:0.18,type:"lowpass",vol:0.06});
+  say("패스",{rate:1.15,pitch:1.05});
 }
 /* 내 차례: 밝은 마림바 '딩동' */
 function sfxTurn(){
@@ -405,7 +427,7 @@ function sfxLose(){
 /* 중립 라운드 종료 */
 function sfxDing(){ tone({f0:659,dur:0.16,type:"triangle",vol:0.14,lp:4000}); tone({f0:880,t:0.09,dur:0.2,type:"triangle",vol:0.1}); }
 function updateMuteBtn(){ document.getElementById("muteBtn").textContent=muted?"🔇":"🔊"; }
-document.getElementById("muteBtn").onclick=()=>{ muted=!muted; localStorage.setItem("lexio_mute",muted?"1":"0"); updateMuteBtn(); if(!muted){audio();sfxDing();} };
+document.getElementById("muteBtn").onclick=()=>{ muted=!muted; localStorage.setItem("lexio_mute",muted?"1":"0"); updateMuteBtn(); try{if(muted&&"speechSynthesis" in window)speechSynthesis.cancel();}catch(e){} if(!muted){audio();sfxDing();} };
 ["click","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,()=>audio(),{passive:true}));
 
 /* ========== 상태 ========== */

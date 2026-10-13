@@ -1,9 +1,6 @@
-# Render.com 배포 설정 (무료 플랜)
-# 1) 이 폴더를 GitHub 저장소에 올린다
-# 2) render.com → New → Blueprint → 저장소 선택 → 자동 인식
-# 주의: 무료 플랜은 일정 시간 미사용 시 잠들고, 파일시스템이 임시라
-#       재배포/재시작 시 data/users.json(계정)이 초기화됩니다.
-#       계정을 영구 보관하려면 유료 디스크나 외부 DB가 필요합니다.
+# Render.com 배포 설정 (무료 플랜, 고정 주소)
+# 배포 순서는 README.txt 의 "클라우드 배포" 참고.
+# 계정 영구 보관을 위해 DATABASE_URL(무료 Neon Postgres)을 연결합니다.
 services:
   - type: web
     name: lexio-online
@@ -12,3 +9,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python server.py
     autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        sync: false   # Neon 연결 문자열을 Render 대시보드에서 입력(비밀로 보관)

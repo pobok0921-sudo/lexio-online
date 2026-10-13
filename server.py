@@ -36,6 +36,50 @@ def save_users(u):
 
 USERS = load_users()
 
+# ================= 계정 영구저장 (선택: PostgreSQL) =================
+# DATABASE_URL 환경변수가 있으면 Postgres 사용(클라우드 상시 운영 시 계정 유지),
+# 없으면 기존처럼 data/users.json 파일 사용(로컬).
+DATABASE_URL = os.environ.get("DATABASE_URL")
+_pool = None
+
+async def db_init():
+    global _pool
+    if not DATABASE_URL:
+        print("DB: 로컬 파일 모드 (data/users.json)")
+        return
+    try:
+        import asyncpg, ssl as _ssl
+        dsn = DATABASE_URL.split("?")[0]            # sslmode 등 쿼리 제거
+        ctx = _ssl.create_default_context()
+        _pool = await asyncpg.create_pool(dsn=dsn, ssl=ctx, min_size=1, max_size=5)
+        async with _pool.acquire() as c:
+            await c.execute("CREATE TABLE IF NOT EXISTS users("
+                            "username text PRIMARY KEY, salt text, hash text, wins int DEFAULT 0)")
+            rows = await c.fetch("SELECT username, salt, hash, wins FROM users")
+        USERS.clear()
+        for r in rows:
+            USERS[r["username"]] = {"salt": r["salt"], "hash": r["hash"], "wins": r["wins"]}
+        print(f"DB: PostgreSQL 연결됨, 계정 {len(USERS)}개 로드")
+    except Exception as e:
+        _pool = None
+        print("DB: 연결 실패 → 파일 모드로 대체:", e)
+
+async def persist_user(uid):
+    if uid not in USERS:
+        return
+    u = USERS[uid]
+    if _pool:
+        try:
+            async with _pool.acquire() as c:
+                await c.execute(
+                    "INSERT INTO users(username,salt,hash,wins) VALUES($1,$2,$3,$4) "
+                    "ON CONFLICT(username) DO UPDATE SET wins=EXCLUDED.wins",
+                    uid, u["salt"], u["hash"], u.get("wins", 0))
+        except Exception as e:
+            print("DB persist 오류:", e)
+    else:
+        save_users(USERS)
+
 def hash_pw(pw, salt=None):
     if salt is None:
         salt = secrets.token_hex(16)
@@ -452,7 +496,7 @@ def end_round(room, winner):
     wp = room.players[winner]
     if not wp.is_ai and wp.name in USERS:
         USERS[wp.name]["wins"] = USERS[wp.name].get("wins", 0) + 1
-        save_users(USERS)
+        asyncio.create_task(persist_user(wp.name))
 
 async def run_turns(room):
     """AI 또는 오프라인 유저의 턴을 자동 진행. 인간 온라인 턴을 만나면 멈춤."""
@@ -544,7 +588,7 @@ async def handle_msg(ws, data):
             return await send(ws, {"t": "err", "msg": "이미 있는 아이디입니다"})
         salt, h = hash_pw(pw)
         USERS[uid] = {"salt": salt, "hash": h, "wins": 0}
-        save_users(USERS)
+        await persist_user(uid)
         return await send(ws, {"t": "ok", "msg": "가입 완료! 로그인하세요"})
 
     if t == "login":
@@ -792,8 +836,12 @@ async def ws_handler(request):
 async def index(request):
     return web.FileResponse(os.path.join(STATIC, "index.html"))
 
+async def _on_startup(app):
+    await db_init()
+
 def make_app():
     app = web.Application()
+    app.on_startup.append(_on_startup)
     app.router.add_get("/", index)
     app.router.add_get("/ws", ws_handler)
     app.router.add_static("/static/", STATIC)
