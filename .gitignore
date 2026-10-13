@@ -1,0 +1,6 @@
+# 로컬 전용/민감/대용량 파일은 저장소에 올리지 않음
+data/
+__pycache__/
+*.pyc
+cloudflared.exe
+*.log

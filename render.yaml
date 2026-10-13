@@ -1,0 +1,14 @@
+# Render.com 배포 설정 (무료 플랜)
+# 1) 이 폴더를 GitHub 저장소에 올린다
+# 2) render.com → New → Blueprint → 저장소 선택 → 자동 인식
+# 주의: 무료 플랜은 일정 시간 미사용 시 잠들고, 파일시스템이 임시라
+#       재배포/재시작 시 data/users.json(계정)이 초기화됩니다.
+#       계정을 영구 보관하려면 유료 디스크나 외부 DB가 필요합니다.
+services:
+  - type: web
+    name: lexio-online
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    autoDeploy: true
