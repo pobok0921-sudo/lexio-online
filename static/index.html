@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>렉시오 온라인</title>
 <style>
   :root{
@@ -14,7 +14,10 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;color:var(--txt);
     font-family:"Segoe UI",Roboto,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;overscroll-behavior:none;}
-  body{max-width:800px;margin:0 auto;padding:10px 10px 18px;min-height:100vh;
+  body{max-width:800px;margin:0 auto;min-height:100vh;
+    /* 노치/상태바 안전영역만큼 위를 띄워 상단 잘림 방지 */
+    padding:calc(env(safe-area-inset-top, 0px) + 16px) calc(env(safe-area-inset-right,0px) + 10px)
+            calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 10px);
     background:
       radial-gradient(1200px 600px at 50% -10%,#1d2a47 0%,transparent 55%),
       radial-gradient(900px 500px at 120% 110%,#20183a 0%,transparent 50%),
@@ -45,9 +48,9 @@
   .row{display:flex;gap:8px;} .row>*{flex:1;}
   .link{color:var(--accent);text-align:center;font-size:13px;margin-top:11px;cursor:pointer;}
   .link:hover{text-decoration:underline;}
-  .status{position:fixed;top:6px;right:10px;font-size:10px;color:var(--mut);z-index:80;}
+  .status{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:12px;font-size:10px;color:var(--mut);z-index:80;}
   .status.on{color:var(--good);} .status.off{color:var(--bad);}
-  .muteBtn{position:fixed;top:4px;left:10px;z-index:80;background:rgba(255,255,255,.06);
+  .muteBtn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:12px;z-index:80;background:rgba(255,255,255,.06);
     border:1px solid var(--line);border-radius:9px;width:34px;height:30px;font-size:15px;color:var(--txt);}
 
   #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#2a1824;
@@ -154,6 +157,12 @@
   #log{font-size:12px;color:var(--mut);max-height:120px;overflow-y:auto;line-height:1.75;}
   #log b{color:var(--txt);} #log>div{animation:fadein .25s both;}
   @keyframes fadein{from{opacity:0;}to{opacity:1;}}
+  .btn.mic{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;font-size:16px;font-weight:800;
+    background:linear-gradient(180deg,#2b3a59,#1f2c49);color:var(--txt);user-select:none;touch-action:none;transition:transform .08s;}
+  .btn.mic.rec{background:linear-gradient(180deg,#ff5a5a,#d12b2b);color:#fff;box-shadow:0 0 0 3px rgba(255,90,90,.3);animation:recpulse 1s infinite;}
+  @keyframes recpulse{0%,100%{box-shadow:0 0 0 3px rgba(255,90,90,.25);}50%{box-shadow:0 0 0 6px rgba(255,90,90,.12);}}
+  .micHint{font-size:11px;color:var(--mut);text-align:center;}
+  .voicebadge{display:inline-block;background:#24406a;color:#bcd4ff;border-radius:7px;padding:2px 8px;font-size:11px;font-weight:700;}
 
   .modal{position:fixed;inset:0;background:rgba(5,8,15,.86);display:none;align-items:center;justify-content:center;
     padding:14px;z-index:60;backdrop-filter:blur(3px);}
@@ -258,7 +267,9 @@
       <div class="waitmsg hidden" id="waitMsg">상대 차례…</div>
     </div>
     <div class="card">
-      <div style="display:flex;gap:6px;margin-bottom:7px;">
+      <button class="btn mic" id="micBtn" style="margin-bottom:8px;">🎤 길게 눌러 말하기</button>
+      <div class="micHint" id="micHint">누르고 있는 동안 녹음 → 떼면 같은 방 사람들에게 전송돼요</div>
+      <div style="display:flex;gap:6px;margin:8px 0 7px;">
         <input id="chatInput" placeholder="채팅…" style="margin:0;" maxlength="120">
         <button class="btn s" id="chatBtn" style="width:auto;padding:0 16px;">전송</button>
       </div>
@@ -462,7 +473,87 @@ function onMsg(m){
       document.getElementById("meWins").textContent=m.wins||0; break;
     case "lobby": ROOM=null; sfxState.inited=false; renderLobby(m.rooms); showScreen("lobby"); break;
     case "room": handleSfx(m); ROOM=m.room; mySeat=m.yourSeat; myHand=m.yourHand||[]; renderRoom(); showScreen("room"); break;
+    case "voice": playVoice(m); break;
   }
+}
+
+/* ========== 음성 (푸시투토크, WAV) ========== */
+let micStream=null, micCtx=null, micNode=null, micSrc=null, micChunks=[], micSR=16000, recording=false;
+async function startRec(){
+  if(recording) return;
+  try{
+    if(!micStream) micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    micCtx=micCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(micCtx.state==="suspended") await micCtx.resume();
+    micSrc=micCtx.createMediaStreamSource(micStream);
+    const bufSize=4096;
+    micNode=micCtx.createScriptProcessor(bufSize,1,1);
+    micChunks=[]; micSR=micCtx.sampleRate;
+    micNode.onaudioprocess=e=>{ if(recording) micChunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    micSrc.connect(micNode); micNode.connect(micCtx.destination);
+    recording=true;
+    const b=document.getElementById("micBtn"); b.classList.add("rec"); b.textContent="🔴 녹음중… (떼면 전송)";
+    // 안전장치: 최대 15초
+    micMaxTimer=setTimeout(()=>{ if(recording) stopRec(); },15000);
+  }catch(e){
+    toast("마이크 권한이 필요해요 (브라우저에서 허용)",false);
+    recording=false;
+  }
+}
+let micMaxTimer=null;
+function stopRec(){
+  if(!recording) return;
+  recording=false;
+  clearTimeout(micMaxTimer);
+  const b=document.getElementById("micBtn"); b.classList.remove("rec"); b.textContent="🎤 길게 눌러 말하기";
+  try{ micNode.disconnect(); micSrc.disconnect(); }catch(e){}
+  // PCM 합치기 → 16kHz 다운샘플 → WAV
+  let len=0; micChunks.forEach(c=>len+=c.length);
+  if(len< micSR*0.3){ return; } // 너무 짧으면 무시(0.3초)
+  const pcm=new Float32Array(len); let o=0; micChunks.forEach(c=>{pcm.set(c,o);o+=c.length;});
+  const down=downsample(pcm, micSR, 16000);
+  const wav=encodeWAV(down,16000);
+  const b64=abToB64(wav);
+  if(b64.length>850000){ toast("녹음이 너무 길어요(최대 ~12초)",false); return; }
+  send({t:"voice",data:b64});
+  toast("음성 전송 🎤",true);
+}
+function downsample(buf, inSR, outSR){
+  if(outSR>=inSR) return buf;
+  const ratio=inSR/outSR, outLen=Math.round(buf.length/ratio), out=new Float32Array(outLen);
+  let oi=0, ii=0;
+  while(oi<outLen){
+    const next=Math.round((oi+1)*ratio); let sum=0,cnt=0;
+    for(;ii<next&&ii<buf.length;ii++){sum+=buf[ii];cnt++;}
+    out[oi++]=cnt?sum/cnt:0;
+  }
+  return out;
+}
+function encodeWAV(samples, sr){
+  const buf=new ArrayBuffer(44+samples.length*2), v=new DataView(buf);
+  const ws=(off,s)=>{for(let i=0;i<s.length;i++)v.setUint8(off+i,s.charCodeAt(i));};
+  ws(0,"RIFF"); v.setUint32(4,36+samples.length*2,true); ws(8,"WAVE"); ws(12,"fmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,"data"); v.setUint32(40,samples.length*2,true);
+  let off=44;
+  for(let i=0;i<samples.length;i++){ let s=Math.max(-1,Math.min(1,samples[i])); v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true); off+=2; }
+  return buf;
+}
+function abToB64(ab){ let bin=""; const b=new Uint8Array(ab); const chunk=0x8000;
+  for(let i=0;i<b.length;i+=chunk) bin+=String.fromCharCode.apply(null,b.subarray(i,i+chunk));
+  return btoa(bin);
+}
+function playVoice(m){
+  if(muted) return;
+  try{
+    const bin=atob(m.data), u=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([u],{type:"audio/wav"}));
+    const a=new Audio(url); a.play().catch(()=>{}); a.onended=()=>URL.revokeObjectURL(url);
+    const nm=(ROOM&&ROOM.players[m.seat])?ROOM.players[m.seat].name:m.from;
+    toast("🔊 "+nm+" 음성",true);
+  }catch(e){}
 }
 /* 사운드 트리거 */
 function handleSfx(m){
@@ -472,6 +563,8 @@ function handleSfx(m){
   const curSig=r.cur?r.cur.tiles.map(t=>t.id).join(","):"";
   const prev=sfxState;
   if(prev.inited){
+    const roundStart = r.phase==="playing" && prev.phase!=="playing";
+    if(roundStart) announceLeader(r, ys);
     if(r.phase==="playing"){
       if(total<prev.total){
         const newPlay=r.cur&&curSig!==prev.curSig;
@@ -481,7 +574,7 @@ function handleSfx(m){
       } else if(logLast!==prev.logLast && /패스/.test(logLast)){
         sfxPass();
       }
-      if(r.turn===ys && (prev.turn!==ys||prev.phase!=="playing")) setTimeout(sfxTurn,170);
+      if(!roundStart && r.turn===ys && (prev.turn!==ys||prev.phase!=="playing")) setTimeout(sfxTurn,170);
     }
     if(r.phase==="roundend" && prev.phase!=="roundend" && r.lastRound){
       const lr=r.lastRound;
@@ -490,6 +583,13 @@ function handleSfx(m){
     }
   }
   sfxState={inited:true,phase:r.phase,turn:r.turn,total,logLast,curSig};
+}
+/* 라운드 시작 — 선(先) 플레이어 음성 안내 (구름3 보유자) */
+function announceLeader(r, ys){
+  const L=r.players[r.leader]; if(!L) return;
+  sfxTurn();  // 시작 알림 종
+  if(r.leader===ys) setTimeout(()=>say("선이에요! 구름 3을 내고 시작하세요"),350);
+  else setTimeout(()=>say(L.name+"님이 선! 구름 3 가진 사람 시작하세요"),350);
 }
 
 /* ========== 화면 ========== */
@@ -663,6 +763,16 @@ document.getElementById("nextBtn").onclick=()=>send({t:"next"});
 document.getElementById("toLobbyBtn").onclick=()=>send({t:"backToLobby"});
 document.getElementById("chatBtn").onclick=sendChat;
 document.getElementById("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat();});
+// 마이크(푸시투토크): 누르면 녹음, 떼면 전송
+(function(){
+  const mb=document.getElementById("micBtn");
+  const down=e=>{ e.preventDefault(); startRec(); };
+  const up=e=>{ e.preventDefault(); stopRec(); };
+  mb.addEventListener("pointerdown",down);
+  mb.addEventListener("pointerup",up);
+  mb.addEventListener("pointerleave",up);
+  mb.addEventListener("pointercancel",up);
+})();
 function sendChat(){const i=document.getElementById("chatInput");if(i.value.trim()){send({t:"chat",msg:i.value});i.value="";}}
 
 /* ========== SCORE ========== */

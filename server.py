@@ -40,7 +40,24 @@ USERS = load_users()
 # DATABASE_URL 환경변수가 있으면 Postgres 사용(클라우드 상시 운영 시 계정 유지),
 # 없으면 기존처럼 data/users.json 파일 사용(로컬).
 DATABASE_URL = os.environ.get("DATABASE_URL")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "lexio-admin")  # 관리자 페이지 비밀번호
+GAMES_FILE = os.path.join(DATA, "games.json")
 _pool = None
+
+def _load_games():
+    if os.path.exists(GAMES_FILE):
+        try:
+            with open(GAMES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def _save_games(g):
+    tmp = GAMES_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(g, f, ensure_ascii=False)
+    os.replace(tmp, GAMES_FILE)
 
 async def db_init():
     global _pool
@@ -56,11 +73,18 @@ async def db_init():
                                           statement_cache_size=0)
         async with _pool.acquire() as c:
             await c.execute("CREATE TABLE IF NOT EXISTS users("
-                            "username text PRIMARY KEY, salt text, hash text, wins int DEFAULT 0)")
-            rows = await c.fetch("SELECT username, salt, hash, wins FROM users")
+                            "username text PRIMARY KEY, salt text, hash text, "
+                            "wins int DEFAULT 0, games int DEFAULT 0, created timestamptz DEFAULT now())")
+            await c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS games int DEFAULT 0")
+            await c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created timestamptz DEFAULT now()")
+            await c.execute("CREATE TABLE IF NOT EXISTS game_log("
+                            "id serial PRIMARY KEY, ts timestamptz DEFAULT now(), "
+                            "room text, winner text, detail jsonb)")
+            rows = await c.fetch("SELECT username, salt, hash, wins, games, created FROM users")
         USERS.clear()
         for r in rows:
-            USERS[r["username"]] = {"salt": r["salt"], "hash": r["hash"], "wins": r["wins"]}
+            USERS[r["username"]] = {"salt": r["salt"], "hash": r["hash"], "wins": r["wins"],
+                                    "games": r["games"] or 0, "created": str(r["created"])[:19]}
         print(f"DB: PostgreSQL 연결됨, 계정 {len(USERS)}개 로드")
     except Exception as e:
         _pool = None
@@ -74,13 +98,50 @@ async def persist_user(uid):
         try:
             async with _pool.acquire() as c:
                 await c.execute(
-                    "INSERT INTO users(username,salt,hash,wins) VALUES($1,$2,$3,$4) "
-                    "ON CONFLICT(username) DO UPDATE SET wins=EXCLUDED.wins",
-                    uid, u["salt"], u["hash"], u.get("wins", 0))
+                    "INSERT INTO users(username,salt,hash,wins,games) VALUES($1,$2,$3,$4,$5) "
+                    "ON CONFLICT(username) DO UPDATE SET wins=EXCLUDED.wins, games=EXCLUDED.games",
+                    uid, u["salt"], u["hash"], u.get("wins", 0), u.get("games", 0))
         except Exception as e:
             print("DB persist 오류:", e)
     else:
         save_users(USERS)
+
+async def record_game(room_name, winner_name, detail):
+    """라운드 결과 1건을 영구 기록(계속 누적)."""
+    if _pool:
+        try:
+            async with _pool.acquire() as c:
+                await c.execute("INSERT INTO game_log(room,winner,detail) VALUES($1,$2,$3)",
+                                room_name, winner_name, json.dumps(detail, ensure_ascii=False))
+        except Exception as e:
+            print("record_game DB 오류:", e)
+    else:
+        try:
+            g = _load_games()
+            g.append({"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "room": room_name,
+                      "winner": winner_name, "detail": detail})
+            _save_games(g[-1000:])
+        except Exception as e:
+            print("record_game 파일 오류:", e)
+
+async def get_games_recent(n=200):
+    if _pool:
+        try:
+            async with _pool.acquire() as c:
+                rows = await c.fetch("SELECT ts, room, winner, detail FROM game_log ORDER BY id DESC LIMIT $1", n)
+            out = []
+            for r in rows:
+                d = r["detail"]
+                if isinstance(d, str):
+                    try: d = json.loads(d)
+                    except Exception: d = []
+                out.append({"ts": str(r["ts"])[:19], "room": r["room"], "winner": r["winner"], "detail": d})
+            return out
+        except Exception as e:
+            print("games fetch 오류:", e)
+            return []
+    else:
+        return list(reversed(_load_games()))[:n]
 
 def hash_pw(pw, salt=None):
     if salt is None:
@@ -494,11 +555,19 @@ def end_round(room, winner):
                  for r in rows_sorted],
     }
     log_room(room, f'🎉 <b>{room.players[winner].name}</b> 승리! 라운드 종료')
-    # 누적 승수 저장
+    # 누적 통계(승/판수) + 게임내역 영구 기록
     wp = room.players[winner]
     if not wp.is_ai and wp.name in USERS:
         USERS[wp.name]["wins"] = USERS[wp.name].get("wins", 0) + 1
-        asyncio.create_task(persist_user(wp.name))
+    for p in room.players:
+        if not p.is_ai and p.name in USERS:
+            USERS[p.name]["games"] = USERS[p.name].get("games", 0) + 1
+            asyncio.create_task(persist_user(p.name))
+    detail = [{"name": r["name"], "score": r["score"], "rem": r["rem"],
+               "eff": r["eff"], "twos": r["twos"], "isWinner": r["seat"] == winner,
+               "isAI": room.players[r["seat"]].is_ai}
+              for r in rows_sorted]
+    asyncio.create_task(record_game(room.name, room.players[winner].name, detail))
 
 async def run_turns(room):
     """AI 또는 오프라인 유저의 턴을 자동 진행. 인간 온라인 턴을 만나면 멈춤."""
@@ -589,7 +658,8 @@ async def handle_msg(ws, data):
         if uid in USERS:
             return await send(ws, {"t": "err", "msg": "이미 있는 아이디입니다"})
         salt, h = hash_pw(pw)
-        USERS[uid] = {"salt": salt, "hash": h, "wins": 0}
+        USERS[uid] = {"salt": salt, "hash": h, "wins": 0, "games": 0,
+                      "created": time.strftime("%Y-%m-%d %H:%M:%S")}
         await persist_user(uid)
         return await send(ws, {"t": "ok", "msg": "가입 완료! 로그인하세요"})
 
@@ -797,6 +867,18 @@ async def handle_msg(ws, data):
             await broadcast_room(room)
         return
 
+    if t == "voice":
+        # 푸시투토크 음성(WAV base64)을 같은 방의 다른 온라인 유저에게 중계
+        vdata = data.get("data")
+        if not isinstance(vdata, str) or len(vdata) > 900000:  # 과대 메시지 차단
+            return
+        payload = {"t": "voice", "from": uid, "seat": seat, "data": vdata}
+        for i, p in enumerate(room.players):
+            if p.is_ai or not p.online or p.ws is None or i == seat:
+                continue
+            await send(p.ws, payload)
+        return
+
 
 async def ws_handler(request):
     ws = web.WebSocketResponse(heartbeat=25)
@@ -838,6 +920,27 @@ async def ws_handler(request):
 async def index(request):
     return web.FileResponse(os.path.join(STATIC, "index.html"))
 
+async def admin_page(request):
+    return web.FileResponse(os.path.join(STATIC, "admin.html"))
+
+async def admin_api(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "msg": "잘못된 요청"}, status=400)
+    if (data.get("password") or "") != ADMIN_PASSWORD:
+        return web.json_response({"ok": False, "msg": "비밀번호가 틀립니다"}, status=403)
+    users = sorted(
+        [{"name": k, "wins": v.get("wins", 0), "games": v.get("games", 0),
+          "created": str(v.get("created", ""))[:19]} for k, v in USERS.items()],
+        key=lambda u: (-u["games"], -u["wins"], u["name"]))
+    games = await get_games_recent(200)
+    return web.json_response({
+        "ok": True, "users": users, "games": games,
+        "online": len(USER_WS), "rooms": len(ROOMS),
+        "storage": "PostgreSQL(영구)" if _pool else "로컬파일(임시)",
+    })
+
 async def _on_startup(app):
     await db_init()
 
@@ -846,6 +949,8 @@ def make_app():
     app.on_startup.append(_on_startup)
     app.router.add_get("/", index)
     app.router.add_get("/ws", ws_handler)
+    app.router.add_get("/admin", admin_page)
+    app.router.add_post("/admin/api", admin_api)
     app.router.add_static("/static/", STATIC)
     return app
 
