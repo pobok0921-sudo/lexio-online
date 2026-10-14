@@ -40,7 +40,8 @@ USERS = load_users()
 # DATABASE_URL 환경변수가 있으면 Postgres 사용(클라우드 상시 운영 시 계정 유지),
 # 없으면 기존처럼 data/users.json 파일 사용(로컬).
 DATABASE_URL = os.environ.get("DATABASE_URL")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "lexio-admin")  # 관리자 페이지 비밀번호
+ADMIN_ID = os.environ.get("ADMIN_ID", "admin")   # 로그인 화면에서 관리자 아이디
+ADMIN_PW = os.environ.get("ADMIN_PW", "1234")    # 관리자 비밀번호
 GAMES_FILE = os.path.join(DATA, "games.json")
 _pool = None
 
@@ -142,6 +143,15 @@ async def get_games_recent(n=200):
             return []
     else:
         return list(reversed(_load_games()))[:n]
+
+async def admin_data():
+    users = sorted(
+        [{"name": k, "wins": v.get("wins", 0), "games": v.get("games", 0),
+          "created": str(v.get("created", ""))[:19]} for k, v in USERS.items()],
+        key=lambda u: (-u["games"], -u["wins"], u["name"]))
+    games = await get_games_recent(200)
+    return {"users": users, "games": games, "online": len(USER_WS), "rooms": len(ROOMS),
+            "storage": "PostgreSQL(영구)" if _pool else "로컬파일(임시)"}
 
 def hash_pw(pw, salt=None):
     if salt is None:
@@ -651,6 +661,8 @@ async def handle_msg(ws, data):
     if t == "register":
         uid = (data.get("id") or "").strip()
         pw = data.get("pw") or ""
+        if uid == ADMIN_ID:
+            return await send(ws, {"t": "err", "msg": "사용할 수 없는 아이디입니다"})
         if len(uid) < 2 or len(uid) > 16:
             return await send(ws, {"t": "err", "msg": "아이디는 2~16자"})
         if len(pw) < 4:
@@ -666,6 +678,16 @@ async def handle_msg(ws, data):
     if t == "login":
         uid = (data.get("id") or "").strip()
         pw = data.get("pw") or ""
+        # 관리자 로그인 (로그인 화면에서 admin / 1234)
+        if uid == ADMIN_ID:
+            if pw != ADMIN_PW:
+                return await send(ws, {"t": "err", "msg": "아이디 또는 비밀번호 오류"})
+            token = secrets.token_hex(16)
+            TOKENS[token] = ADMIN_ID
+            ws["user"] = ADMIN_ID
+            ws["is_admin"] = True
+            await send(ws, {"t": "auth", "token": token, "id": ADMIN_ID, "admin": True, "wins": 0})
+            return await send(ws, {"t": "adminData", **(await admin_data())})
         u = USERS.get(uid)
         if not u or not verify_pw(pw, u["salt"], u["hash"]):
             return await send(ws, {"t": "err", "msg": "아이디 또는 비밀번호 오류"})
@@ -694,6 +716,11 @@ async def handle_msg(ws, data):
     if t == "resume":
         token = data.get("token") or ""
         uid = TOKENS.get(token)
+        if uid == ADMIN_ID:
+            ws["user"] = ADMIN_ID
+            ws["is_admin"] = True
+            await send(ws, {"t": "auth", "token": token, "id": ADMIN_ID, "admin": True, "wins": 0})
+            return await send(ws, {"t": "adminData", **(await admin_data())})
         if not uid or uid not in USERS:
             return await send(ws, {"t": "needLogin"})
         old = USER_WS.get(uid)
@@ -717,6 +744,11 @@ async def handle_msg(ws, data):
     uid = ws.get("user")
     if not uid:
         return await send(ws, {"t": "needLogin"})
+
+    if t == "adminData":
+        if not ws.get("is_admin"):
+            return await send(ws, {"t": "err", "msg": "관리자 전용"})
+        return await send(ws, {"t": "adminData", **(await admin_data())})
 
     if t == "lobby":
         return await send_lobby(ws)
@@ -920,27 +952,6 @@ async def ws_handler(request):
 async def index(request):
     return web.FileResponse(os.path.join(STATIC, "index.html"))
 
-async def admin_page(request):
-    return web.FileResponse(os.path.join(STATIC, "admin.html"))
-
-async def admin_api(request):
-    try:
-        data = await request.json()
-    except Exception:
-        return web.json_response({"ok": False, "msg": "잘못된 요청"}, status=400)
-    if (data.get("password") or "") != ADMIN_PASSWORD:
-        return web.json_response({"ok": False, "msg": "비밀번호가 틀립니다"}, status=403)
-    users = sorted(
-        [{"name": k, "wins": v.get("wins", 0), "games": v.get("games", 0),
-          "created": str(v.get("created", ""))[:19]} for k, v in USERS.items()],
-        key=lambda u: (-u["games"], -u["wins"], u["name"]))
-    games = await get_games_recent(200)
-    return web.json_response({
-        "ok": True, "users": users, "games": games,
-        "online": len(USER_WS), "rooms": len(ROOMS),
-        "storage": "PostgreSQL(영구)" if _pool else "로컬파일(임시)",
-    })
-
 async def _on_startup(app):
     await db_init()
 
@@ -949,8 +960,6 @@ def make_app():
     app.on_startup.append(_on_startup)
     app.router.add_get("/", index)
     app.router.add_get("/ws", ws_handler)
-    app.router.add_get("/admin", admin_page)
-    app.router.add_post("/admin/api", admin_api)
     app.router.add_static("/static/", STATIC)
     return app
 

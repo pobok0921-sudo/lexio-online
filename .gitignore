@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 cloudflared.exe
 *.log
+deploy_hook.txt

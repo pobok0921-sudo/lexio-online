@@ -14,5 +14,4 @@ services:
         value: "3.12.8"
       - key: DATABASE_URL
         sync: false   # Neon 연결 문자열을 Render 대시보드에서 입력(비밀로 보관)
-      - key: ADMIN_PASSWORD
-        sync: false   # 관리자 페이지(/admin) 비밀번호. 미설정 시 기본값 lexio-admin
+      # 관리자 로그인: 기본 admin / 1234. 바꾸려면 ADMIN_ID, ADMIN_PW 를 추가 설정.

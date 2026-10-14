@@ -163,6 +163,18 @@
   @keyframes recpulse{0%,100%{box-shadow:0 0 0 3px rgba(255,90,90,.25);}50%{box-shadow:0 0 0 6px rgba(255,90,90,.12);}}
   .micHint{font-size:11px;color:var(--mut);text-align:center;}
   .voicebadge{display:inline-block;background:#24406a;color:#bcd4ff;border-radius:7px;padding:2px 8px;font-size:11px;font-weight:700;}
+  /* 관리자 */
+  .adm-mode{font-size:12px;color:var(--mut);} .adm-mode b{color:var(--accent);}
+  .adm-stat{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .adm-stat .b{flex:1;min-width:72px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;}
+  .adm-stat .b .n{font-size:20px;font-weight:900;color:var(--accent);}
+  .adm-stat .b .l{font-size:11px;color:var(--mut);margin-top:2px;}
+  .admwrap{overflow-x:auto;}
+  #admUserTbl,#admGameTbl{min-width:360px;}
+  #admUserTbl td,#admGameTbl td{white-space:nowrap;}
+  #admUserTbl td.nm{text-align:left;font-weight:700;}
+  .pill{display:inline-block;background:#2a3858;border-radius:6px;padding:1px 6px;margin:1px;font-size:11px;}
+  .pill.w{background:#3a3417;color:var(--accent);}
 
   .modal{position:fixed;inset:0;background:rgba(5,8,15,.86);display:none;align-items:center;justify-content:center;
     padding:14px;z-index:60;backdrop-filter:blur(3px);}
@@ -276,6 +288,29 @@
       <div id="log"></div>
     </div>
     <button class="btn r" id="leaveBtn2" style="margin-top:4px;">방 나가기</button>
+  </div>
+</div>
+
+<!-- ===== ADMIN ===== -->
+<div id="adminScreen" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-weight:900;">🛠️ 관리자</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn s" id="adminRefresh" style="width:auto;padding:8px 12px;font-size:13px;">새로고침</button>
+        <button class="btn s" id="adminLogout" style="width:auto;padding:8px 12px;font-size:13px;">로그아웃</button>
+      </div>
+    </div>
+    <div class="adm-mode" id="admMode" style="margin-top:6px;">저장소: <b>-</b></div>
+    <div class="adm-stat" id="admStat"></div>
+  </div>
+  <div class="card">
+    <div style="font-weight:900;margin-bottom:8px;">👤 회원 목록 <span class="sub" style="font-size:11px">(게임수 순)</span></div>
+    <div class="admwrap"><table id="admUserTbl"><thead><tr><th>#</th><th>아이디</th><th>게임</th><th>승리</th><th>승률</th><th>가입일</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="card">
+    <div style="font-weight:900;margin-bottom:8px;">📜 게임 내역 <span class="sub" style="font-size:11px">(최근순)</span></div>
+    <div class="admwrap"><table id="admGameTbl"><thead><tr><th>시각</th><th>방</th><th>승자</th><th>결과(순위·점수)</th></tr></thead><tbody></tbody></table></div>
   </div>
 </div>
 
@@ -469,12 +504,44 @@ function onMsg(m){
     case "kick": token="";localStorage.removeItem("lexio_token");gotoAuth();toast(m.msg,false); break;
     case "auth":
       token=m.token; me=m.id; localStorage.setItem("lexio_token",token);
+      isAdmin=!!m.admin;
       document.getElementById("meName").textContent=me;
-      document.getElementById("meWins").textContent=m.wins||0; break;
+      document.getElementById("meWins").textContent=m.wins||0;
+      if(isAdmin) showScreen("admin");
+      break;
+    case "adminData": isAdmin=true; renderAdmin(m); showScreen("admin"); break;
     case "lobby": ROOM=null; sfxState.inited=false; renderLobby(m.rooms); showScreen("lobby"); break;
     case "room": handleSfx(m); ROOM=m.room; mySeat=m.yourSeat; myHand=m.yourHand||[]; renderRoom(); showScreen("room"); break;
     case "voice": playVoice(m); break;
   }
+}
+/* ========== 관리자 ========== */
+let isAdmin=false;
+function renderAdmin(d){
+  document.querySelector("#admMode b").textContent=d.storage||"-";
+  document.getElementById("admStat").innerHTML=
+    `<div class="b"><div class="n">${d.users.length}</div><div class="l">총 회원</div></div>`+
+    `<div class="b"><div class="n">${d.games.length}</div><div class="l">게임수</div></div>`+
+    `<div class="b"><div class="n">${d.online}</div><div class="l">접속중</div></div>`+
+    `<div class="b"><div class="n">${d.rooms}</div><div class="l">방</div></div>`;
+  const ub=document.querySelector("#admUserTbl tbody"); ub.innerHTML="";
+  d.users.forEach((u,i)=>{
+    const rate=u.games?Math.round(u.wins/u.games*100):0;
+    ub.insertAdjacentHTML("beforeend",
+      `<tr><td>${i+1}</td><td class="nm">${esc(u.name)}</td><td>${u.games}</td>
+       <td class="win">${u.wins}</td><td>${rate}%</td><td>${esc(u.created||"-")}</td></tr>`);
+  });
+  if(!d.users.length) ub.innerHTML=`<tr><td colspan="6" style="color:var(--mut)">아직 회원이 없습니다</td></tr>`;
+  const gb=document.querySelector("#admGameTbl tbody"); gb.innerHTML="";
+  d.games.forEach(g=>{
+    const parts=(g.detail||[]).map((p,idx)=>{
+      const cls=p.score>0?"pos":p.score<0?"neg":""; const w=p.isWinner?" w":""; const sign=p.score>0?"+":"";
+      return `<span class="pill${w}">${idx+1}.${esc(p.name)}${p.isAI?"🤖":""} <span class="${cls}">${sign}${p.score}</span></span>`;
+    }).join(" ");
+    gb.insertAdjacentHTML("beforeend",
+      `<tr><td>${esc(g.ts)}</td><td>${esc(g.room)}</td><td class="win">${esc(g.winner)}</td><td style="text-align:left;white-space:normal">${parts}</td></tr>`);
+  });
+  if(!d.games.length) gb.innerHTML=`<tr><td colspan="4" style="color:var(--mut)">아직 게임 기록이 없습니다</td></tr>`;
 }
 
 /* ========== 음성 (푸시투토크, WAV) ========== */
@@ -598,7 +665,8 @@ function announceLeader(r, ys){
 function showScreen(s){ screen=s;
   document.getElementById("authScreen").classList.toggle("hidden",s!=="auth");
   document.getElementById("lobbyScreen").classList.toggle("hidden",s!=="lobby");
-  document.getElementById("roomScreen").classList.toggle("hidden",s!=="room"); }
+  document.getElementById("roomScreen").classList.toggle("hidden",s!=="room");
+  document.getElementById("adminScreen").classList.toggle("hidden",s!=="admin"); }
 function gotoAuth(){ showScreen("auth"); }
 
 /* ========== AUTH ========== */
@@ -616,6 +684,8 @@ document.getElementById("authBtn").onclick=()=>{
 };
 document.getElementById("authPw").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("authBtn").click();});
 document.getElementById("logoutBtn").onclick=()=>{token="";localStorage.removeItem("lexio_token");me="";gotoAuth();};
+document.getElementById("adminRefresh").onclick=()=>send({t:"adminData"});
+document.getElementById("adminLogout").onclick=()=>{isAdmin=false;token="";localStorage.removeItem("lexio_token");me="";gotoAuth();};
 
 /* ========== LOBBY ========== */
 let pickP=4, pickLevel="normal";
