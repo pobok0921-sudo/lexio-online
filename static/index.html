@@ -490,7 +490,9 @@ async function startRec(){
     micNode=micCtx.createScriptProcessor(bufSize,1,1);
     micChunks=[]; micSR=micCtx.sampleRate;
     micNode.onaudioprocess=e=>{ if(recording) micChunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
-    micSrc.connect(micNode); micNode.connect(micCtx.destination);
+    // 무음 게인을 거쳐 연결(프로세서 구동용) → 자기 목소리가 스피커로 새지 않게 함
+    const mute=micCtx.createGain(); mute.gain.value=0;
+    micSrc.connect(micNode); micNode.connect(mute); mute.connect(micCtx.destination);
     recording=true;
     const b=document.getElementById("micBtn"); b.classList.add("rec"); b.textContent="🔴 녹음중… (떼면 전송)";
     // 안전장치: 최대 15초
