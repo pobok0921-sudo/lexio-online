@@ -973,7 +973,12 @@ async def ws_handler(request):
 
 
 async def index(request):
-    return web.FileResponse(os.path.join(STATIC, "index.html"))
+    # 캐시 금지 → 업데이트가 즉시 반영됨(브라우저가 매번 최신을 받음)
+    resp = web.FileResponse(os.path.join(STATIC, "index.html"))
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 async def _on_startup(app):
     await db_init()
