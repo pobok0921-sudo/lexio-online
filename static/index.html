@@ -60,54 +60,49 @@
   #toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
   #toast.okk{background:#132a1d;color:#8fe6b0;border-color:#2b5c3f;}
 
-  /* ===== 타일 (프리미엄 디자인) ===== */
-  .tile{width:46px;height:62px;border-radius:10px;position:relative;user-select:none;overflow:hidden;
-    display:flex;flex-direction:column;align-items:center;
-    border:1.5px solid rgba(255,255,255,.35);
-    box-shadow:0 4px 9px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,255,255,.5),inset 0 -7px 11px rgba(0,0,0,.3);}
+  /* ===== 타일 (라인업 디자인: 좌상단 숫자 + 가운데 아이콘) ===== */
+  .tile{width:46px;height:62px;border-radius:11px;position:relative;user-select:none;overflow:hidden;
+    border:1.5px solid rgba(232,206,132,.7);
+    box-shadow:0 3px 7px rgba(0,0,0,.5),inset 0 1px 2px rgba(255,255,255,.35),inset 0 -6px 11px rgba(0,0,0,.34),inset 0 0 0 1px rgba(255,228,150,.22);}
   /* 상단 광택 */
-  .tile::before{content:"";position:absolute;top:2px;left:3px;right:3px;height:44%;z-index:1;pointer-events:none;
-    border-radius:8px 8px 24px 24px/8px 8px 18px 18px;
-    background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.04));}
-  /* 상단 색상 아이콘 배지 */
-  .tile .s{margin-top:4px;width:20px;height:20px;border-radius:50%;z-index:2;
-    display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;
-    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.6),rgba(255,255,255,.12));
-    box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.35);}
-  /* 골드 세리프 숫자 */
-  .tile .n{position:absolute;left:0;right:0;bottom:3px;text-align:center;z-index:3;
-    font-family:Georgia,"Times New Roman",serif;font-weight:800;font-size:27px;line-height:1;
-    color:#fff3cf;text-shadow:0 1px 0 #7a4e12,0 -1px 0 #7a4e12,1px 0 0 #7a4e12,-1px 0 0 #7a4e12,0 2px 4px rgba(0,0,0,.55);}
-  .tile.cloud{background:linear-gradient(180deg,#8fbaff,#3b86ff 44%,#1f57c8);}
-  .tile.star{background:linear-gradient(180deg,#ffe79a,#ffc01e 44%,#cf8a00);}
-  .tile.moon{background:linear-gradient(180deg,#7df0bd,#17c07c 44%,#0a8a56);}
-  .tile.sun{background:linear-gradient(180deg,#ff9b9b,#ff4d4d 44%,#c21f1f);}
+  .tile::before{content:"";position:absolute;top:2px;left:3px;right:3px;height:40%;z-index:1;pointer-events:none;
+    border-radius:9px 9px 24px 24px/9px 9px 16px 16px;
+    background:linear-gradient(180deg,rgba(255,255,255,.4),rgba(255,255,255,.03));}
+  /* 좌상단 숫자(금색 세리프) */
+  .tile .num{position:absolute;top:1px;left:5px;z-index:3;
+    font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:15px;line-height:1.1;
+    color:#f6e4ad;text-shadow:0 1px 2px rgba(0,0,0,.75);}
+  /* 가운데 아이콘 */
+  .tile .ico{position:absolute;top:54%;left:50%;transform:translate(-50%,-50%);z-index:2;
+    width:58%;height:46%;display:flex;align-items:center;justify-content:center;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+  .tile .ico svg{width:100%;height:100%;}
+  .tile.cloud{background:linear-gradient(165deg,#4172d8,#1c3c88);} .tile.cloud .ico{color:#e2edff;}
+  .tile.star{background:linear-gradient(165deg,#b99a2e,#796015);}  .tile.star .ico{color:#ffe24d;}
+  .tile.moon{background:linear-gradient(165deg,#239152,#0e4927);}  .tile.moon .ico{color:#a6f0c0;}
+  .tile.sun{background:linear-gradient(165deg,#bd3131,#781313);}   .tile.sun .ico{color:#ff9f45;}
   .tile.small{width:38px;height:51px;border-radius:9px;}
-  .tile.small .n{font-size:21px;bottom:2px;} .tile.small .s{width:16px;height:16px;font-size:10px;margin-top:3px;}
+  .tile.small .num{font-size:12px;top:0;left:4px;}
 
   /* 숫자 1 (두번째로 높음) — 은빛 테두리 */
-  .tile.n1{border-color:#eef3ff;
-    box-shadow:0 0 0 1.5px #b9c6e4,0 0 11px rgba(205,224,255,.6),0 4px 9px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,255,255,.5);}
+  .tile.n1{border-color:#e4ecfb;
+    box-shadow:0 0 0 1.5px #bcc9e6,0 0 10px rgba(205,224,255,.55),0 3px 7px rgba(0,0,0,.5),inset 0 1px 2px rgba(255,255,255,.4);}
 
-  /* 숫자 2 (최강) — 화려한 금테 + 발광 + 홀로그램 */
-  .tile.n2{border:2px solid #ffe488;
-    box-shadow:0 0 0 2px #c9972e,0 0 0 3px rgba(255,235,150,.5),0 0 18px rgba(255,205,70,.9),
-      0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55);
-    animation:n2glow 1.7s ease-in-out infinite;}
-  .tile.n2 .n{color:#fff6d8;text-shadow:0 1px 0 #8a5a12,0 -1px 0 #8a5a12,1px 0 0 #8a5a12,-1px 0 0 #8a5a12,0 0 9px rgba(255,220,120,.95),0 2px 4px rgba(0,0,0,.6);}
-  .tile.n2::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
-    background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.65) 46%,rgba(255,240,180,.55) 54%,transparent 72%);
-    background-size:260% 260%;animation:holo 2.6s linear infinite;mix-blend-mode:screen;}
+  /* 숫자 2 (최강) — 화려한 금색 장식 프레임 + 발광 */
+  .tile.n2{border-color:transparent;overflow:visible;animation:n2glow 1.8s ease-in-out infinite;}
+  .tile.n2 .num{color:#fff2cf;text-shadow:0 1px 2px rgba(0,0,0,.8),0 0 6px rgba(255,210,100,.85);z-index:6;}
+  .tile.n2 .ico{z-index:5;}
+  .tile.n2 .orn{position:absolute;inset:-1.5px;z-index:4;pointer-events:none;}
+  .tile.n2 .orn svg{width:100%;height:100%;display:block;filter:drop-shadow(0 0 2px rgba(255,210,90,.8));}
   @keyframes n2glow{
-    0%,100%{box-shadow:0 0 0 2px #c9972e,0 0 0 3px rgba(255,235,150,.45),0 0 12px rgba(255,205,70,.7),0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55);}
-    50%{box-shadow:0 0 0 2px #e0ad3e,0 0 0 3px rgba(255,235,150,.7),0 0 24px rgba(255,210,90,1),0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.6);}}
-  @keyframes holo{0%{background-position:0% 50%;}100%{background-position:260% 50%;}}
+    0%,100%{box-shadow:0 0 11px rgba(255,205,70,.7),0 3px 8px rgba(0,0,0,.55);}
+    50%{box-shadow:0 0 22px rgba(255,210,90,1),0 3px 8px rgba(0,0,0,.55);}}
 
   /* PC·태블릿: 화면을 더 채우고 타일을 키움 */
   @media(min-width:820px){
     body{padding-left:24px;padding-right:24px;}
-    .tile{width:58px;height:78px;border-radius:12px;} .tile .n{font-size:34px;} .tile .s{width:24px;height:24px;font-size:15px;}
-    .tile.small{width:50px;height:67px;} .tile.small .n{font-size:28px;} .tile.small .s{width:20px;height:20px;font-size:13px;}
+    .tile{width:58px;height:78px;border-radius:12px;} .tile .num{font-size:19px;left:6px;}
+    .tile.small{width:50px;height:67px;} .tile.small .num{font-size:16px;}
     #hand{gap:8px;padding-top:14px;} #boardTiles{gap:10px;min-height:78px;}
     #board{min-height:155px;padding:18px;}
     .opp{min-width:120px;padding:12px 8px;} .opp .nm{font-size:14px;}
@@ -422,6 +417,23 @@
 /* ========== 로컬 족보 판정(버튼 활성용) ========== */
 const COLORS=["cloud","star","moon","sun"];
 const CGLYPH={cloud:"☁",star:"★",moon:"🌙",sun:"☀"};
+// 색상 아이콘(SVG, 가운데)
+const ICON_SVG={
+  cloud:'<svg viewBox="0 0 48 34"><path fill="currentColor" d="M37 33H13A11.5 11.5 0 0 1 12 10.1 14 14 0 0 1 38 13 8.8 8.8 0 0 1 37 33z"/></svg>',
+  star:'<svg viewBox="0 0 48 48"><path fill="currentColor" d="M24 1.5l6.6 14.4 15.8 1.4-12 10.5 3.6 15.5L24 36.1 10 43.3l3.6-15.5-12-10.5 15.8-1.4z"/></svg>',
+  moon:'<svg viewBox="0 0 48 48"><path fill="currentColor" d="M32 4.5A20 20 0 1 0 45.5 40 16.5 16.5 0 0 1 32 4.5z"/></svg>',
+  sun:'<svg viewBox="0 0 48 48" fill="currentColor"><circle cx="24" cy="24" r="10"/><g stroke="currentColor" stroke-width="4.6" stroke-linecap="round"><path d="M24 2.5v7M24 38.5v7M2.5 24h7M38.5 24h7M9 9l5 5M34 34l5 5M39 9l-5 5M14 34l-5 5"/></g></svg>'
+};
+// 숫자 2 전용 화려한 금색 장식 프레임
+const ORN_SVG='<svg viewBox="0 0 100 136" preserveAspectRatio="none">'
+ +'<defs><linearGradient id="og2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4bd"/><stop offset=".35" stop-color="#f3c552"/><stop offset=".65" stop-color="#b8882b"/><stop offset="1" stop-color="#f7d062"/></linearGradient></defs>'
+ +'<rect x="3.5" y="3.5" width="93" height="129" rx="13" fill="none" stroke="url(#og2)" stroke-width="6"/>'
+ +'<rect x="9" y="9" width="82" height="118" rx="8" fill="none" stroke="#6b4e14" stroke-width="1"/>'
+ +'<rect x="10.6" y="10.6" width="78.8" height="114.8" rx="7" fill="none" stroke="url(#og2)" stroke-width="1.4"/>'
+ +'<g fill="url(#og2)"><circle cx="6.5" cy="6.5" r="3.6"/><circle cx="93.5" cy="6.5" r="3.6"/><circle cx="6.5" cy="129.5" r="3.6"/><circle cx="93.5" cy="129.5" r="3.6"/>'
+ +'<path d="M50 1.5l3 4.5-3 4.5-3-4.5z"/><path d="M50 134.5l3-4.5-3-4.5-3 4.5z"/><path d="M1.5 68l4.5-3 4.5 3-4.5 3z"/><path d="M98.5 68l-4.5-3-4.5 3 4.5 3z"/></g>'
+ +'<path d="M50 118l2.2 4.6 5 .4-3.8 3.3 1.1 4.9-4.5-2.5-4.5 2.5 1.1-4.9-3.8-3.3 5-.4z" fill="url(#og2)"/>'
+ +'</svg>';
 const COMBO_KR={single:"싱글",pair:"페어",triple:"트리플",straight:"스트레이트",flush:"플러쉬",fullhouse:"풀하우스",fourkind:"포카드",straightflush:"스트레이트플러쉬"};
 let MAXNUM=15, STRSET=new Set();
 function nrank(n){ if(n>=3)return n-3; if(n===1)return MAXNUM-2; return MAXNUM-1; }
@@ -852,7 +864,7 @@ function tileEl(t,small,cls){
   const d=document.createElement("div");
   const nc=t.num===2?" n2":t.num===1?" n1":"";
   d.className="tile "+t.color+nc+(small?" small":"")+(cls?" "+cls:"");
-  d.innerHTML=`<div class="s">${CGLYPH[t.color]}</div><div class="n">${t.num}</div>`;
+  d.innerHTML=`<span class="num">${t.num}</span><span class="ico">${ICON_SVG[t.color]}</span>`+(t.num===2?`<span class="orn">${ORN_SVG}</span>`:"");
   return d;
 }
 function renderGame(){
