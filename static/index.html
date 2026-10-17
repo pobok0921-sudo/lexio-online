@@ -60,49 +60,59 @@
   #toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
   #toast.okk{background:#132a1d;color:#8fe6b0;border-color:#2b5c3f;}
 
-  /* ===== 타일 ===== */
-  .tile{width:44px;height:60px;border-radius:11px;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;position:relative;user-select:none;font-weight:800;
-    border:2px solid rgba(255,255,255,.22);
-    box-shadow:0 3px 7px rgba(0,0,0,.4),inset 0 2px 5px rgba(255,255,255,.3),inset 0 -5px 9px rgba(0,0,0,.25);}
-  .tile .n{font-size:23px;line-height:1;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);z-index:2;}
-  .tile .s{font-size:14px;line-height:1;margin-top:3px;z-index:2;
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));}
-  .tile.cloud{background:radial-gradient(120% 90% at 30% 15%,#7db0ff,var(--cloud) 45%,var(--cloud-d));}
-  .tile.star{background:radial-gradient(120% 90% at 30% 15%,#ffde7a,var(--star) 45%,var(--star-d));}
-  .tile.moon{background:radial-gradient(120% 90% at 30% 15%,#66e7af,var(--moon) 45%,var(--moon-d));}
-  .tile.sun{background:radial-gradient(120% 90% at 30% 15%,#ff9191,var(--sun) 45%,var(--sun-d));}
-  .tile.small{width:36px;height:49px;border-radius:9px;} .tile.small .n{font-size:19px;} .tile.small .s{font-size:12px;}
+  /* ===== 타일 (프리미엄 디자인) ===== */
+  .tile{width:46px;height:62px;border-radius:10px;position:relative;user-select:none;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;
+    border:1.5px solid rgba(255,255,255,.35);
+    box-shadow:0 4px 9px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,255,255,.5),inset 0 -7px 11px rgba(0,0,0,.3);}
+  /* 상단 광택 */
+  .tile::before{content:"";position:absolute;top:2px;left:3px;right:3px;height:44%;z-index:1;pointer-events:none;
+    border-radius:8px 8px 24px 24px/8px 8px 18px 18px;
+    background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.04));}
+  /* 상단 색상 아이콘 배지 */
+  .tile .s{margin-top:4px;width:20px;height:20px;border-radius:50%;z-index:2;
+    display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;
+    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.6),rgba(255,255,255,.12));
+    box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.35);}
+  /* 골드 세리프 숫자 */
+  .tile .n{position:absolute;left:0;right:0;bottom:3px;text-align:center;z-index:3;
+    font-family:Georgia,"Times New Roman",serif;font-weight:800;font-size:27px;line-height:1;
+    color:#fff3cf;text-shadow:0 1px 0 #7a4e12,0 -1px 0 #7a4e12,1px 0 0 #7a4e12,-1px 0 0 #7a4e12,0 2px 4px rgba(0,0,0,.55);}
+  .tile.cloud{background:linear-gradient(180deg,#8fbaff,#3b86ff 44%,#1f57c8);}
+  .tile.star{background:linear-gradient(180deg,#ffe79a,#ffc01e 44%,#cf8a00);}
+  .tile.moon{background:linear-gradient(180deg,#7df0bd,#17c07c 44%,#0a8a56);}
+  .tile.sun{background:linear-gradient(180deg,#ff9b9b,#ff4d4d 44%,#c21f1f);}
+  .tile.small{width:38px;height:51px;border-radius:9px;}
+  .tile.small .n{font-size:21px;bottom:2px;} .tile.small .s{width:16px;height:16px;font-size:10px;margin-top:3px;}
+
+  /* 숫자 1 (두번째로 높음) — 은빛 테두리 */
+  .tile.n1{border-color:#eef3ff;
+    box-shadow:0 0 0 1.5px #b9c6e4,0 0 11px rgba(205,224,255,.6),0 4px 9px rgba(0,0,0,.5),inset 0 2px 4px rgba(255,255,255,.5);}
+
+  /* 숫자 2 (최강) — 화려한 금테 + 발광 + 홀로그램 */
+  .tile.n2{border:2px solid #ffe488;
+    box-shadow:0 0 0 2px #c9972e,0 0 0 3px rgba(255,235,150,.5),0 0 18px rgba(255,205,70,.9),
+      0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55);
+    animation:n2glow 1.7s ease-in-out infinite;}
+  .tile.n2 .n{color:#fff6d8;text-shadow:0 1px 0 #8a5a12,0 -1px 0 #8a5a12,1px 0 0 #8a5a12,-1px 0 0 #8a5a12,0 0 9px rgba(255,220,120,.95),0 2px 4px rgba(0,0,0,.6);}
+  .tile.n2::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+    background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.65) 46%,rgba(255,240,180,.55) 54%,transparent 72%);
+    background-size:260% 260%;animation:holo 2.6s linear infinite;mix-blend-mode:screen;}
+  @keyframes n2glow{
+    0%,100%{box-shadow:0 0 0 2px #c9972e,0 0 0 3px rgba(255,235,150,.45),0 0 12px rgba(255,205,70,.7),0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.55);}
+    50%{box-shadow:0 0 0 2px #e0ad3e,0 0 0 3px rgba(255,235,150,.7),0 0 24px rgba(255,210,90,1),0 4px 9px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.6);}}
+  @keyframes holo{0%{background-position:0% 50%;}100%{background-position:260% 50%;}}
+
   /* PC·태블릿: 화면을 더 채우고 타일을 키움 */
   @media(min-width:820px){
     body{padding-left:24px;padding-right:24px;}
-    .tile{width:56px;height:74px;border-radius:13px;} .tile .n{font-size:29px;} .tile .s{font-size:18px;}
-    .tile.small{width:48px;height:64px;} .tile.small .n{font-size:25px;} .tile.small .s{font-size:15px;}
-    #hand{gap:8px;padding-top:14px;} #boardTiles{gap:10px;min-height:74px;}
-    #board{min-height:150px;padding:18px;} #boardTiles .tile.small{margin-top:2px;}
+    .tile{width:58px;height:78px;border-radius:12px;} .tile .n{font-size:34px;} .tile .s{width:24px;height:24px;font-size:15px;}
+    .tile.small{width:50px;height:67px;} .tile.small .n{font-size:28px;} .tile.small .s{width:20px;height:20px;font-size:13px;}
+    #hand{gap:8px;padding-top:14px;} #boardTiles{gap:10px;min-height:78px;}
+    #board{min-height:155px;padding:18px;}
     .opp{min-width:120px;padding:12px 8px;} .opp .nm{font-size:14px;}
     h1{font-size:28px;}
   }
-
-  /* 숫자 1 (두번째 높음) — 은은한 은빛 */
-  .tile.n1{border-color:#e7eefc;box-shadow:0 3px 7px rgba(0,0,0,.4),0 0 9px rgba(210,228,255,.5),
-    inset 0 2px 5px rgba(255,255,255,.4),inset 0 -5px 9px rgba(0,0,0,.25);}
-  .tile.n1 .n::after{content:"✦";position:absolute;top:1px;right:3px;font-size:9px;color:#eaf2ff;opacity:.9;}
-
-  /* 숫자 2 (최강) — 왕관 + 금빛 + 홀로그램 반짝임 */
-  .tile.n2{border:2px solid #ffe06b;
-    box-shadow:0 0 0 1px rgba(255,255,255,.35),0 0 14px rgba(255,205,70,.8),0 3px 8px rgba(0,0,0,.45),
-      inset 0 2px 6px rgba(255,255,255,.45);
-    animation:n2glow 1.8s ease-in-out infinite;overflow:visible;}
-  .tile.n2::before{content:"♛";position:absolute;top:-10px;left:50%;transform:translateX(-50%);
-    font-size:14px;color:#ffe06b;text-shadow:0 1px 3px rgba(0,0,0,.6),0 0 6px rgba(255,205,70,.9);z-index:5;}
-  .tile.n2::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
-    background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.65) 46%,rgba(255,240,180,.5) 54%,transparent 72%);
-    background-size:260% 260%;animation:holo 2.6s linear infinite;mix-blend-mode:screen;}
-  .tile.small.n2::before{font-size:11px;top:-8px;}
-  @keyframes n2glow{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.35),0 0 10px rgba(255,205,70,.6),0 3px 8px rgba(0,0,0,.45),inset 0 2px 6px rgba(255,255,255,.45);}
-    50%{box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 20px rgba(255,210,90,1),0 3px 8px rgba(0,0,0,.45),inset 0 2px 6px rgba(255,255,255,.55);}}
-  @keyframes holo{0%{background-position:0% 50%;}100%{background-position:260% 50%;}}
 
   .dealin{animation:dealin .32s cubic-bezier(.2,.9,.3,1.2) both;}
   @keyframes dealin{from{opacity:0;transform:translateY(-14px) scale(.8);}to{opacity:1;transform:none;}}
@@ -842,7 +852,7 @@ function tileEl(t,small,cls){
   const d=document.createElement("div");
   const nc=t.num===2?" n2":t.num===1?" n1":"";
   d.className="tile "+t.color+nc+(small?" small":"")+(cls?" "+cls:"");
-  d.innerHTML=`<div class="n">${t.num}</div><div class="s">${CGLYPH[t.color]}</div>`;
+  d.innerHTML=`<div class="s">${CGLYPH[t.color]}</div><div class="n">${t.num}</div>`;
   return d;
 }
 function renderGame(){
