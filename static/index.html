@@ -207,6 +207,16 @@
   tr.meRow{background:rgba(255,210,74,.08);}
   td.pos{color:var(--good);font-weight:800;} td.neg{color:var(--bad);font-weight:800;}
   .foot{text-align:center;color:var(--mut);font-size:11px;margin:10px 0;}
+  /* 게임 설명 */
+  .help{font-size:13.5px;line-height:1.6;color:var(--txt);}
+  .help p{margin:4px 0 10px;} .help ul{margin:4px 0 10px;padding-left:20px;} .help li{margin:3px 0;}
+  .help .hgoal{background:rgba(255,210,74,.1);border:1px solid #4a3f1e;border-radius:10px;padding:10px;text-align:center;font-size:14px;}
+  .help .hsec{font-weight:900;color:var(--accent);margin:14px 0 4px;font-size:14px;}
+  .help .hnote{color:var(--mut);font-size:12px;}
+  .help b.ac,.help .ac{color:var(--accent);}
+  .help .cc{display:inline-block;border-radius:6px;padding:1px 7px;font-weight:800;font-size:12px;color:#fff;}
+  .help .cc.cl{background:var(--cloud);} .help .cc.st{background:var(--star);color:#3a2600;}
+  .help .cc.mo{background:var(--moon);} .help .cc.su{background:var(--sun);}
 </style>
 </head>
 <body>
@@ -233,9 +243,12 @@
 <!-- ===== LOBBY ===== -->
 <div id="lobbyScreen" class="hidden">
   <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
       <div><b id="meName">-</b> <span class="sub">🏆 <span id="meWins">0</span></span></div>
-      <button class="btn s" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:13px;">로그아웃</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn s" id="helpBtn" style="width:auto;padding:8px 12px;font-size:13px;">📖 게임 설명</button>
+        <button class="btn s" id="logoutBtn" style="width:auto;padding:8px 12px;font-size:13px;">로그아웃</button>
+      </div>
     </div>
   </div>
   <div class="card">
@@ -327,6 +340,57 @@
   <div class="card">
     <div style="font-weight:900;margin-bottom:8px;">📜 게임 내역 <span class="sub" style="font-size:11px">(최근순)</span></div>
     <div class="admwrap"><table id="admGameTbl"><thead><tr><th>시각</th><th>방</th><th>승자</th><th>결과(순위·점수)</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- ===== 게임 설명 MODAL ===== -->
+<div class="modal" id="helpModal">
+  <div class="box">
+    <h2>📖 게임 설명</h2>
+    <div class="help">
+      <p class="hgoal">손에 든 타일을 <b>가장 먼저 다 내는 사람이 승리!</b> 🏆</p>
+
+      <div class="hsec">🔢 숫자 서열 (높을수록 셈)</div>
+      <p>3 &lt; 4 &lt; 5 … &lt; 14 &lt; 15 &lt; <b class="ac">1</b> &lt; <b class="ac">2</b>
+      <span class="hnote">(1·2가 가장 높음, 그중 <b>2가 최강</b>)</span></p>
+
+      <div class="hsec">🎨 색상 서열 (같은 숫자일 때)</div>
+      <p><span class="cc cl">구름 ☁</span> &lt; <span class="cc st">별 ★</span> &lt; <span class="cc mo">달 🌙</span> &lt; <span class="cc su">해 ☀</span></p>
+
+      <div class="hsec">🃏 낼 수 있는 조합 (족보)</div>
+      <ul>
+        <li><b>싱글</b> 1장 · <b>페어</b> 같은숫자 2장 · <b>트리플</b> 같은숫자 3장</li>
+        <li><b>메이드 5장</b> — 약한 순서:<br>
+          스트레이트 &lt; 플러쉬 &lt; 풀하우스 &lt; 포카드 &lt; 스트레이트플러쉬</li>
+      </ul>
+      <p class="hnote">스트레이트=연속 5숫자 / 플러쉬=같은색 5장 / 풀하우스=3+2 / 포카드=4+1 / 스트플=같은색 연속5</p>
+
+      <div class="hsec">▶ 게임 진행</div>
+      <ul>
+        <li><b>구름3</b> 가진 사람이 <b>선(첫 차례)</b> — 선은 <b>아무 조합이나 자유롭게</b> 시작</li>
+        <li>다음 사람은 <b>같은 장수·같은 유형</b>이면서 <b>더 높은</b> 패를 내거나 <b>패스</b></li>
+        <li>메이드(5장)는 더 높은 족보로 덮을 수 있음 (예: 스트레이트 위에 플러쉬)</li>
+        <li>나 빼고 모두 패스하면 → 내가 다시 선이 되어 새로 시작</li>
+      </ul>
+
+      <div class="hsec">⭐ 스트레이트 특별 규칙</div>
+      <p>가장 강한 스트레이트: <b>1-2-3-4-5</b> &gt; 2-3-4-5-6 &gt; …-1<br>
+      <span class="hnote">숫자 2는 스트레이트 맨 끝에 올 수 없어요</span></p>
+
+      <div class="hsec">💰 점수 계산</div>
+      <ul>
+        <li>라운드 끝나면 <b>남은 타일 수</b>로 1:1 정산 (적을수록 이득)</li>
+        <li>⚠️ 끝날 때 <b>숫자 2</b>를 들고 있으면 <b>개수당 ×2 페널티!</b> (2가 2개면 ×4)</li>
+      </ul>
+
+      <div class="hsec">🎤 기타</div>
+      <ul>
+        <li>게임 중 <b>"길게 눌러 말하기"</b>로 같은 방 사람들과 음성 대화</li>
+        <li>타일을 눌러 선택 → <b>내기</b> / 낼 수 없으면 <b>패스</b> · <b>정렬</b>로 순서 정리</li>
+        <li>AI 난이도는 <b>1급(입문)~5급(최고수)</b>, 숫자 클수록 강함</li>
+      </ul>
+    </div>
+    <button class="btn p" id="helpClose" style="margin-top:4px;">닫기</button>
   </div>
 </div>
 
@@ -700,6 +764,9 @@ document.getElementById("authBtn").onclick=()=>{
 };
 document.getElementById("authPw").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("authBtn").click();});
 document.getElementById("logoutBtn").onclick=()=>{token="";localStorage.removeItem("lexio_token");me="";gotoAuth();};
+document.getElementById("helpBtn").onclick=()=>document.getElementById("helpModal").classList.add("on");
+document.getElementById("helpClose").onclick=()=>document.getElementById("helpModal").classList.remove("on");
+document.getElementById("helpModal").addEventListener("click",e=>{if(e.target.id==="helpModal")document.getElementById("helpModal").classList.remove("on");});
 document.getElementById("adminRefresh").onclick=()=>send({t:"adminData"});
 document.getElementById("adminLogout").onclick=()=>{isAdmin=false;token="";localStorage.removeItem("lexio_token");me="";gotoAuth();};
 
