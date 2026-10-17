@@ -674,6 +674,9 @@ async def leave_room(username):
 async def handle_msg(ws, data):
     t = data.get("t")
 
+    if t == "getver":
+        return await send(ws, {"t": "ver", "v": current_ver()})
+
     # ---- 인증 ----
     if t == "register":
         uid = (data.get("id") or "").strip()
@@ -939,6 +942,7 @@ async def ws_handler(request):
     ws = web.WebSocketResponse(heartbeat=25)
     await ws.prepare(request)
     ws["user"] = None
+    await send(ws, {"t": "ver", "v": current_ver()})  # 버전 알림(자동 업데이트)
     try:
         async for msg in ws:
             if msg.type == WSMsgType.TEXT:
@@ -972,9 +976,23 @@ async def ws_handler(request):
     return ws
 
 
+INDEX_PATH = os.path.join(STATIC, "index.html")
+
+def current_ver():
+    """index.html 수정시각 기반 버전(배포 때마다 바뀜)."""
+    try:
+        return str(int(os.path.getmtime(INDEX_PATH)))
+    except Exception:
+        return "0"
+
 async def index(request):
-    # 캐시 금지 → 업데이트가 즉시 반영됨(브라우저가 매번 최신을 받음)
-    resp = web.FileResponse(os.path.join(STATIC, "index.html"))
+    # 캐시 금지 + 버전 주입 → 홈화면 앱도 새 버전 자동 반영
+    try:
+        with open(INDEX_PATH, "r", encoding="utf-8") as f:
+            html = f.read().replace("%%BUILDVER%%", current_ver())
+        resp = web.Response(text=html, content_type="text/html", charset="utf-8")
+    except Exception:
+        resp = web.FileResponse(INDEX_PATH)
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"

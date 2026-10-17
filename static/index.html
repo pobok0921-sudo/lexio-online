@@ -583,6 +583,16 @@ let ws=null, token=localStorage.getItem("lexio_token")||"", me="", screen="auth"
 let ROOM=null, mySeat=-1, myHand=[], selected=new Set(), sortMode="num", authMode="login";
 let reconnectTimer=null;
 let sfxState={inited:false,phase:null,turn:null,total:null,logLast:null,curSig:null};
+/* 자동 업데이트: 서버 버전이 바뀌면 최신으로 새로고침(홈화면 앱 포함) */
+let BUILD_VER="%%BUILDVER%%";
+function checkVer(v){
+  if(!v || BUILD_VER.charAt(0)==="%" || v===BUILD_VER) return; // 미주입(로컬) or 동일버전
+  let last=null; try{last=sessionStorage.getItem("lexio_ver");}catch(e){}
+  if(last===v) return;                 // 같은 버전으로 이미 새로고침함(무한루프 방지)
+  try{sessionStorage.setItem("lexio_ver",v);}catch(e){}
+  location.replace(location.pathname+"?v="+encodeURIComponent(v)); // 캐시 무시하고 최신 로드
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) send({t:"getver"}); });
 
 /* ========== 연결 ========== */
 function connect(){
@@ -615,6 +625,7 @@ function onMsg(m){
     case "lobby": ROOM=null; sfxState.inited=false; renderLobby(m.rooms); showScreen("lobby"); break;
     case "room": handleSfx(m); ROOM=m.room; mySeat=m.yourSeat; myHand=m.yourHand||[]; renderRoom(); showScreen("room"); break;
     case "voice": playVoice(m); break;
+    case "ver": checkVer(m.v); break;
   }
 }
 /* ========== 관리자 ========== */
