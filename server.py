@@ -165,7 +165,13 @@ def verify_pw(pw, salt, hexhash):
 
 # ================= 렉시오 엔진 =================
 COLORS = ["cloud", "star", "moon", "sun"]  # 0<1<2<3
-PLAYER_MAX = {2: 7, 3: 9, 4: 13, 5: 15}    # 인원 -> 최대숫자
+# 모든 인원에서 숫자 1~15 전체 사용 (덱 60장: 2인 30/3인 20/4인 15/5인 12장씩)
+PLAYER_MAX = {2: 15, 3: 15, 4: 15, 5: 15}  # 인원 -> 최대숫자
+
+# AI 플레이어 이름(연예인)
+AI_NAMES = ["유재석", "강호동", "박명수", "김종국", "하하", "이광수", "아이유", "이효리",
+            "손흥민", "김연아", "차은우", "수지", "카리나", "제니", "장원영", "임영웅",
+            "전지현", "공유", "박보검", "유인나"]
 
 def nrank(n, maxnum):
     if n >= 3: return n - 3
@@ -293,10 +299,26 @@ def _single_play(t, maxnum, strset):
 def _lowest_tile(pool, maxnum):
     return min(pool, key=lambda t: (nrank(t["num"], maxnum), crank(t["color"])))
 
-def ai_lead(level, hand, first_move, maxnum, strset):
-    must_c3 = not first_move
-    # 한 번에 전부 털어 승리 가능하면 (보통/어려움)
-    if level in ("normal", "hard") and len(hand) in (1, 2, 3, 5):
+def ai_params(grade):
+    """1등급(가장 약함) ~ 5등급(가장 강함)"""
+    table = {
+        1: {"pass_rand": 0.55, "random_play": True,  "save_top": None,    "smart_lead": "weak",   "lead_rand": 0.85, "go_out": False},
+        2: {"pass_rand": 0.30, "random_play": True,  "save_top": None,    "smart_lead": "weak",   "lead_rand": 0.45, "go_out": False},
+        3: {"pass_rand": 0.0,  "random_play": False, "save_top": "soft",  "smart_lead": "normal", "lead_rand": 0.0,  "go_out": True},
+        4: {"pass_rand": 0.0,  "random_play": False, "save_top": "soft",  "smart_lead": "hard",   "lead_rand": 0.0,  "go_out": True},
+        5: {"pass_rand": 0.0,  "random_play": False, "save_top": "hard",  "smart_lead": "hard",   "lead_rand": 0.0,  "go_out": True},
+    }
+    try:
+        g = int(grade)
+    except (TypeError, ValueError):
+        g = 3
+    return table.get(g, table[3])
+
+def ai_lead(grade, hand, first_move, maxnum, strset):
+    p = ai_params(grade)
+    must_c3 = False  # 선도 구름3을 꼭 내지 않아도 됨(자유 시작)
+    # 한 번에 전부 털어 승리 가능하면 (중급 이상)
+    if p["go_out"] and len(hand) in (1, 2, 3, 5):
         full = classify(hand, maxnum, strset)
         if full and ((not must_c3) or _c3_in(hand)):
             return {"tiles": hand[:], "combo": full}
@@ -313,14 +335,15 @@ def ai_lead(level, hand, first_move, maxnum, strset):
         return None
 
     sortkey = lambda c: (-len(c["tiles"]), tuple(c["combo"]["key"]))
+    keyonly = lambda c: tuple(c["combo"]["key"])
 
-    if level == "easy":
-        singles = [c for c in cands if len(c["tiles"]) == 1]
-        if singles and random.random() < 0.7:
-            return random.choice(singles)
-        return random.choice(cands)
+    if p["smart_lead"] == "weak":
+        if random.random() < p["lead_rand"]:
+            return random.choice(cands)              # 아무 조합이나 (비효율)
+        singles = sorted([c for c in cands if len(c["tiles"]) == 1], key=keyonly)
+        return singles[0] if singles else sorted(cands, key=keyonly)[0]
 
-    if level == "hard":
+    if p["smart_lead"] == "hard":
         if len(hand) <= 6 or must_c3:
             cands.sort(key=sortkey); return cands[0]
         # 평소엔 메이드(5장)·최고패(1,2)는 아껴 무기로 남기고 낮은 묶음부터 턴다
@@ -338,44 +361,42 @@ def ai_lead(level, hand, first_move, maxnum, strset):
     if not near:
         cands.sort(key=sortkey)
     else:
-        cands.sort(key=lambda c: tuple(c["combo"]["key"]))
+        cands.sort(key=keyonly)
     for c in cands:
         if c["combo"]["count"] == 1 and not near and c["tiles"][0]["num"] in (1, 2):
             continue
         return c
     return cands[0]
 
-def ai_follow(level, hand, cur, maxnum, strset):
-    plays = [p for p in enumerate_plays(hand, cur["count"], maxnum, strset) if beats(p["combo"], cur)]
+def ai_follow(grade, hand, cur, maxnum, strset):
+    p = ai_params(grade)
+    plays = [x for x in enumerate_plays(hand, cur["count"], maxnum, strset) if beats(x["combo"], cur)]
     if not plays:
         return None
-    plays.sort(key=lambda p: p["combo"]["key"])
-    # 이번에 전부 털고 나갈 수 있으면 무조건 (보통/어려움)
-    if level in ("normal", "hard"):
-        outs = [p for p in plays if len(p["tiles"]) == len(hand)]
+    plays.sort(key=lambda x: x["combo"]["key"])
+    # 이번에 전부 털고 나갈 수 있으면 (중급 이상)
+    if p["go_out"]:
+        outs = [x for x in plays if len(x["tiles"]) == len(hand)]
         if outs:
-            return min(outs, key=lambda p: p["combo"]["key"])
-
-    if level == "easy":
-        if random.random() < 0.4:
-            return None
+            return min(outs, key=lambda x: x["combo"]["key"])
+    # 약한 등급: 괜히 패스 / 아무거나 내기
+    if p["pass_rand"] > 0 and random.random() < p["pass_rand"]:
+        return None
+    if p["random_play"]:
         return random.choice(plays)
-
     best = plays[0]
-    if level == "hard":
+    if p["save_top"]:
         near = len(hand) <= cur["count"] + 3
         top = max(best["tiles"], key=lambda t: nrank(t["num"], maxnum))
-        if not near and top["num"] == 2:
-            return None
-        if not near and top["num"] == 1 and random.random() < 0.6:
-            return None
-        return best
-
-    # normal
-    if len(hand) > 6 and best["combo"]["count"] <= 2:
-        top = max(best["tiles"], key=lambda t: nrank(t["num"], maxnum))
-        if top["num"] in (1, 2) and random.random() < 0.7:
-            return None
+        if not near:
+            if p["save_top"] == "hard":
+                if top["num"] == 2:
+                    return None
+                if top["num"] == 1 and random.random() < 0.6:
+                    return None
+            else:  # soft
+                if top["num"] in (1, 2) and random.random() < 0.6:
+                    return None
     return best
 
 # ================= 방/게임 상태 =================
@@ -397,7 +418,7 @@ class Room:
         self.name = name or ("방 " + self.id)
         self.max_players = max_players  # 2~5
         self.host = host                # username
-        self.ai_level = "normal"        # easy / normal / hard
+        self.ai_grade = 3               # 1(약) ~ 5(강)
         self.players = []               # Player
         self.phase = "lobby"            # lobby/playing/roundend
         self.maxnum = PLAYER_MAX[max_players]
@@ -443,7 +464,7 @@ def public_tiles(tiles):
 def room_public(room):
     return {
         "id": room.id, "name": room.name, "maxPlayers": room.max_players,
-        "maxnum": room.maxnum, "phase": room.phase, "host": room.host, "aiLevel": room.ai_level,
+        "maxnum": room.maxnum, "phase": room.phase, "host": room.host, "aiGrade": room.ai_grade,
         "turn": room.turn, "leader": room.leader, "firstMove": room.first_move,
         "cur": ({"tiles": public_tiles(room.cur["tiles"]), "cat": room.cur["cat"],
                  "catKr": COMBO_KR[room.cur["cat"]], "by": room.cur["by"]} if room.cur else None),
@@ -500,7 +521,7 @@ def start_round(room):
     room.first_move = False
     room.phase = "playing"
     room.last_round = None
-    log_room(room, f'<b>새 라운드</b> — {room.players[room.leader].name} 선 (구름3)')
+    log_room(room, f'<b>새 라운드</b> — {room.players[room.leader].name} 선 (구름3 보유)')
 
 def do_play(room, seat, tiles):
     """검증 후 적용. 성공시 True"""
@@ -514,11 +535,7 @@ def do_play(room, seat, tiles):
     combo = classify(tiles, room.maxnum, room.strset)
     if not combo:
         return False, "유효하지 않은 조합"
-    if room.cur is None:
-        if not room.first_move:
-            if not any(t["num"] == 3 and t["color"] == "cloud" for t in tiles):
-                return False, "첫 패에 구름3을 포함해야 합니다"
-    else:
+    if room.cur is not None:
         if not beats(combo, {"count": room.cur["combo"]["count"], "key": room.cur["combo"]["key"]}):
             return False, "더 높은 패여야 합니다"
     # 적용
@@ -587,12 +604,12 @@ async def run_turns(room):
             auto = p.is_ai or (not p.online)
             if not auto:
                 break
-            level = room.ai_level if p.is_ai else "normal"
-            await asyncio.sleep({"easy": 1.0, "normal": 0.85, "hard": 0.7}.get(level, 0.85))
+            grade = room.ai_grade if p.is_ai else 3
+            await asyncio.sleep(max(0.5, 1.05 - grade * 0.08))  # 1등급 느긋 ~ 5등급 빠릿
             if room.phase != "playing":
                 break
             if room.cur is None:
-                choice = ai_lead(level, p.hand, room.first_move, room.maxnum, room.strset)
+                choice = ai_lead(grade, p.hand, room.first_move, room.maxnum, room.strset)
                 if choice:
                     do_play(room, room.turn, choice["tiles"])
                 else:
@@ -600,7 +617,7 @@ async def run_turns(room):
                     if p.hand:
                         do_play(room, room.turn, [p.hand[0]])
             else:
-                choice = ai_follow(level, p.hand, room.cur["combo"], room.maxnum, room.strset)
+                choice = ai_follow(grade, p.hand, room.cur["combo"], room.maxnum, room.strset)
                 if choice:
                     do_play(room, room.turn, choice["tiles"])
                 else:
@@ -761,9 +778,12 @@ async def handle_msg(ws, data):
         if mp not in PLAYER_MAX:
             return await send(ws, {"t": "err", "msg": "인원은 2~5"})
         room = Room(name, mp, uid)
-        lvl = data.get("aiLevel")
-        if lvl in ("easy", "normal", "hard"):
-            room.ai_level = lvl
+        try:
+            g = int(data.get("aiGrade"))
+            if 1 <= g <= 5:
+                room.ai_grade = g
+        except (TypeError, ValueError):
+            pass
         pl = Player(uid); pl.ws = ws
         room.players.append(pl)
         ROOMS[room.id] = room
@@ -809,19 +829,22 @@ async def handle_msg(ws, data):
             return
         if room.active_count() >= room.max_players:
             return await send(ws, {"t": "err", "msg": "자리 없음"})
-        ainames = ["AI 준", "AI 서", "AI 민", "AI 하"]
-        used = [p.name for p in room.players if p.is_ai]
-        nm = next((x for x in ainames if x not in used), "AI")
+        used = set(p.name for p in room.players)
+        pool = [x for x in AI_NAMES if x not in used]
+        nm = random.choice(pool) if pool else ("AI" + str(random.randint(1, 999)))
         room.players.append(Player(nm, is_ai=True))
         await broadcast_room(room); await broadcast_lobby()
         return
 
-    if t == "setAiLevel":
+    if t == "setAiGrade":
         if room.host != uid or room.phase != "lobby":
             return
-        lvl = data.get("level")
-        if lvl in ("easy", "normal", "hard"):
-            room.ai_level = lvl
+        try:
+            g = int(data.get("grade"))
+        except (TypeError, ValueError):
+            return
+        if 1 <= g <= 5:
+            room.ai_grade = g
             await broadcast_room(room)
         return
 

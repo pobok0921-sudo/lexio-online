@@ -14,7 +14,7 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;color:var(--txt);
     font-family:"Segoe UI",Roboto,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;overscroll-behavior:none;}
-  body{max-width:800px;margin:0 auto;min-height:100vh;
+  body{max-width:1120px;margin:0 auto;min-height:100vh;
     /* 노치/상태바 안전영역만큼 위를 띄워 상단 잘림 방지 */
     padding:calc(env(safe-area-inset-top, 0px) + 16px) calc(env(safe-area-inset-right,0px) + 10px)
             calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 10px);
@@ -73,6 +73,16 @@
   .tile.moon{background:radial-gradient(120% 90% at 30% 15%,#66e7af,var(--moon) 45%,var(--moon-d));}
   .tile.sun{background:radial-gradient(120% 90% at 30% 15%,#ff9191,var(--sun) 45%,var(--sun-d));}
   .tile.small{width:36px;height:49px;border-radius:9px;} .tile.small .n{font-size:19px;} .tile.small .s{font-size:12px;}
+  /* PC·태블릿: 화면을 더 채우고 타일을 키움 */
+  @media(min-width:820px){
+    body{padding-left:24px;padding-right:24px;}
+    .tile{width:56px;height:74px;border-radius:13px;} .tile .n{font-size:29px;} .tile .s{font-size:18px;}
+    .tile.small{width:48px;height:64px;} .tile.small .n{font-size:25px;} .tile.small .s{font-size:15px;}
+    #hand{gap:8px;padding-top:14px;} #boardTiles{gap:10px;min-height:74px;}
+    #board{min-height:150px;padding:18px;} #boardTiles .tile.small{margin-top:2px;}
+    .opp{min-width:120px;padding:12px 8px;} .opp .nm{font-size:14px;}
+    h1{font-size:28px;}
+  }
 
   /* 숫자 1 (두번째 높음) — 은은한 은빛 */
   .tile.n1{border-color:#e7eefc;box-shadow:0 3px 7px rgba(0,0,0,.4),0 0 9px rgba(210,228,255,.5),
@@ -109,6 +119,7 @@
   .pcpick button{flex:1;padding:12px 4px;border-radius:10px;border:2px solid var(--line);background:#0f1626;
     color:var(--txt);font-weight:800;font-size:14px;}
   .pcpick button.sel{border-color:var(--accent);background:#2a3450;color:var(--accent);box-shadow:0 0 0 3px rgba(255,210,74,.14);}
+  .gradepick button{padding:11px 2px;font-size:13px;}
 
   #seats{display:flex;flex-wrap:wrap;gap:8px;margin:11px 0;}
   .seat{flex:1;min-width:125px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
@@ -128,6 +139,11 @@
   .opp.off{opacity:.5;}
   .opp .nm{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .opp .cnt{font-size:11px;color:var(--mut);} .opp .chip{font-size:11px;color:var(--accent);font-weight:800;}
+  .opp .cntbig{display:inline-block;margin:2px 0;padding:3px 10px;border-radius:9px;
+    background:linear-gradient(180deg,#32456a,#283b5c);border:1px solid #44597d;
+    font-size:14px;font-weight:800;color:#eaf3ff;}
+  .opp .cntbig b{font-size:18px;color:#ffe07a;margin:0 1px;}
+  .opp.turn .cntbig{background:linear-gradient(180deg,#5a4a1e,#43350f);border-color:#7a6220;}
   .opp .act{font-size:10px;margin-top:2px;min-height:12px;color:var(--good);font-weight:700;}
   .opp .act.pass{color:var(--bad);}
   .miniback{display:inline-block;width:8px;height:12px;border-radius:2px;
@@ -230,11 +246,11 @@
       <button data-p="2">2인</button><button data-p="3">3인</button>
       <button data-p="4" class="sel">4인</button><button data-p="5">5인</button>
     </div>
-    <div style="font-size:12px;color:var(--mut);margin-top:6px;">AI 난이도</div>
-    <div class="pcpick" id="aiPick">
-      <button data-l="easy">🙂 쉬움</button>
-      <button data-l="normal" class="sel">😎 보통</button>
-      <button data-l="hard">🔥 어려움</button>
+    <div style="font-size:12px;color:var(--mut);margin-top:6px;">AI 난이도 <span style="color:var(--accent)">(숫자 클수록 강함)</span></div>
+    <div class="pcpick gradepick" id="aiPick">
+      <button data-g="1">1급</button><button data-g="2">2급</button>
+      <button data-g="3" class="sel">3급</button><button data-g="4">4급</button>
+      <button data-g="5">5급</button>
     </div>
     <button class="btn g" id="createBtn" style="margin-top:4px;">방 만들기</button>
   </div>
@@ -657,8 +673,8 @@ function handleSfx(m){
 function announceLeader(r, ys){
   const L=r.players[r.leader]; if(!L) return;
   sfxTurn();  // 시작 알림 종
-  if(r.leader===ys) setTimeout(()=>say("선이에요! 구름 3을 내고 시작하세요"),350);
-  else setTimeout(()=>say(L.name+"님이 선! 구름 3 가진 사람 시작하세요"),350);
+  if(r.leader===ys) setTimeout(()=>say("선이에요! 자유롭게 시작하세요"),350);
+  else setTimeout(()=>say(L.name+"님이 선입니다"),350);
 }
 
 /* ========== 화면 ========== */
@@ -688,11 +704,11 @@ document.getElementById("adminRefresh").onclick=()=>send({t:"adminData"});
 document.getElementById("adminLogout").onclick=()=>{isAdmin=false;token="";localStorage.removeItem("lexio_token");me="";gotoAuth();};
 
 /* ========== LOBBY ========== */
-let pickP=4, pickLevel="normal";
-const LV_KR={easy:"🙂 쉬움",normal:"😎 보통",hard:"🔥 어려움"};
+let pickP=4, pickGrade=3;
+const GR_KR={1:"1급 🌱",2:"2급 🙂",3:"3급 😎",4:"4급 🔥",5:"5급 👑"};
 document.getElementById("pcPick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pickP=+b.dataset.p;document.querySelectorAll("#pcPick button").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");});
-document.getElementById("aiPick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pickLevel=b.dataset.l;document.querySelectorAll("#aiPick button").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");});
-document.getElementById("createBtn").onclick=()=>send({t:"create",name:document.getElementById("roomName").value,maxPlayers:pickP,aiLevel:pickLevel});
+document.getElementById("aiPick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;pickGrade=+b.dataset.g;document.querySelectorAll("#aiPick button").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");});
+document.getElementById("createBtn").onclick=()=>send({t:"create",name:document.getElementById("roomName").value,maxPlayers:pickP,aiGrade:pickGrade});
 document.getElementById("refreshBtn").onclick=()=>send({t:"lobby"});
 function renderLobby(rooms){
   const el=document.getElementById("roomList");
@@ -721,23 +737,23 @@ function renderRoom(){
 }
 function renderWait(){
   document.getElementById("waitRoomName").textContent=ROOM.name;
-  document.getElementById("waitInfo").textContent=`${ROOM.maxPlayers}인 방 · 숫자 3~${ROOM.maxnum} · 현재 ${ROOM.players.length}/${ROOM.maxPlayers}명`;
-  // AI 난이도
-  const lv=ROOM.aiLevel||"normal", box=document.getElementById("aiLevelBox");
+  document.getElementById("waitInfo").textContent=`${ROOM.maxPlayers}인 방 · 숫자 1~15 · 현재 ${ROOM.players.length}/${ROOM.maxPlayers}명`;
+  // AI 난이도 (1~5급)
+  const gr=ROOM.aiGrade||3, box=document.getElementById("aiLevelBox");
   if(amHost()){
-    box.innerHTML=`<div style="font-size:12px;color:var(--mut);margin-bottom:4px;">AI 난이도 (방장 설정)</div>
-      <div class="pcpick" id="aiPickRoom">${["easy","normal","hard"].map(l=>`<button data-l="${l}" class="${l===lv?'sel':''}">${LV_KR[l]}</button>`).join("")}</div>`;
-    box.querySelectorAll("button").forEach(b=>b.onclick=()=>send({t:"setAiLevel",level:b.dataset.l}));
+    box.innerHTML=`<div style="font-size:12px;color:var(--mut);margin-bottom:4px;">AI 난이도 (방장 설정 · 숫자 클수록 강함)</div>
+      <div class="pcpick gradepick" id="aiPickRoom">${[1,2,3,4,5].map(g=>`<button data-g="${g}" class="${g===gr?'sel':''}">${g}급</button>`).join("")}</div>`;
+    box.querySelectorAll("button").forEach(b=>b.onclick=()=>send({t:"setAiGrade",grade:+b.dataset.g}));
   }else{
-    box.innerHTML=`<div class="sub" style="text-align:left;margin:0">AI 난이도: <b style="color:var(--accent)">${LV_KR[lv]}</b></div>`;
+    box.innerHTML=`<div class="sub" style="text-align:left;margin:0">AI 난이도: <b style="color:var(--accent)">${GR_KR[gr]}</b></div>`;
   }
   const seats=document.getElementById("seats");seats.innerHTML="";
   ROOM.players.forEach((p,i)=>{
     const d=document.createElement("div");
     d.className="seat"+(p.isAI?" ai":"")+(p.name===ROOM.host?" host":"");
-    const initial=p.isAI?"AI":(p.name[0]||"?");
+    const initial=p.isAI?"🤖":(p.name[0]||"?");
     let x=(amHost()&&p.isAI)?`<button class="x" data-seat="${i}">제거</button>`:"";
-    const tag=p.name===ROOM.host?"방장":p.isAI?("컴퓨터 · "+LV_KR[lv]):"플레이어";
+    const tag=p.name===ROOM.host?"방장":p.isAI?("컴퓨터 · "+GR_KR[gr]):"플레이어";
     d.innerHTML=`<div class="av">${esc(initial)}</div><div><div class="nm">${esc(p.name)}</div>
       <div class="tag">${tag}${!p.online&&!p.isAI?" (오프라인)":""}</div></div>${x}`;
     seats.appendChild(d);
@@ -771,7 +787,8 @@ function renderGame(){
     d.className="opp"+(ROOM.turn===i?" turn":"")+(!p.online&&!p.isAI?" off":"");
     let backs="";const show=Math.min(p.handCount,13);for(let k=0;k<show;k++)backs+='<span class="miniback"></span>';
     d.innerHTML=`<div class="nm">${esc(p.name)}${ROOM.turn===i?" ⏳":""}${p.name===ROOM.host?" 👑":""}</div>
-      <div style="margin:3px 0">${backs}</div><div class="cnt">${p.handCount}장</div>
+      <div style="margin:3px 0">${backs}</div>
+      <div class="cntbig">🃏 남은 <b>${p.handCount}</b>장</div>
       <div class="chip">칩 ${p.chips}</div><div class="act${p.last==='패스'?' pass':''}">${esc(p.last||"")}</div>`;
     opps.appendChild(d);
   });
@@ -783,7 +800,7 @@ function renderGame(){
     ROOM.cur.tiles.forEach(t=>bt.appendChild(tileEl(t,true,"dealin")));
     bi.textContent=myTurn?"▶ 더 높은 패를 내거나 패스하세요":`${turnName} 차례`;
   }else{
-    bl.textContent=myTurn?(!ROOM.firstMove?"당신이 선! 구름3을 포함해 시작":"당신 차례 — 새 조합으로 시작"):`${turnName} 차례 — 새 조합 시작`;
+    bl.textContent=myTurn?(!ROOM.firstMove?"당신이 선! 원하는 조합으로 자유롭게 시작":"당신 차례 — 새 조합으로 시작"):`${turnName} 차례 — 새 조합 시작`;
     bi.textContent="";
   }
   const myP=ROOM.players[mySeat];
@@ -791,10 +808,9 @@ function renderGame(){
   document.getElementById("myChip").textContent=myP?myP.chips:0;
   sortHand();
   const hand=document.getElementById("hand");hand.innerHTML="";
-  const needC3=myTurn&&!ROOM.cur&&!ROOM.firstMove;
   const ids=new Set(myHand.map(t=>t.id));[...selected].forEach(id=>{if(!ids.has(id))selected.delete(id);});
   myHand.forEach(t=>{
-    const extra=selected.has(t.id)?"sel":(needC3&&t.num===3&&t.color==="cloud"?"must":"");
+    const extra=selected.has(t.id)?"sel":"";
     const el=tileEl(t,false,"htile "+extra);
     el.onclick=()=>{if(!myTurn)return;sfxSelect();selected.has(t.id)?selected.delete(t.id):selected.add(t.id);renderGame();};
     hand.appendChild(el);
@@ -815,8 +831,7 @@ function updatePlayBtn(){
   const sel=selTiles(),combo=classify(sel);let ok=false,label="내기";
   if(myTurn){
     if(combo){
-      if(!ROOM.cur){ const needC3=!ROOM.firstMove,hasC3=sel.some(t=>t.num===3&&t.color==="cloud");
-        ok=needC3?hasC3:true; label=ok?`${COMBO_KR[combo.cat]} 내기`:(needC3?"구름3 포함 필요":"내기"); }
+      if(!ROOM.cur){ ok=true; label=`${COMBO_KR[combo.cat]} 내기`; }
       else{ ok=sel.length===ROOM.cur.tiles.length && beats(combo,boardCombo());
         label=ok?`${COMBO_KR[combo.cat]}로 내기`:`${COMBO_KR[combo.cat]} (더 높아야 함)`; }
     } else label=sel.length?"잘못된 조합":"타일 선택";
