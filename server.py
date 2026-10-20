@@ -430,6 +430,7 @@ class Room:
         self.log = []
         self.last_round = None
         self.ai_task = None
+        self.del_task = None
 
     def seat_of(self, username):
         for i, p in enumerate(self.players):
@@ -637,6 +638,25 @@ def schedule_ai(room):
         return
     room.ai_task = asyncio.create_task(run_turns(room))
 
+def schedule_room_delete(room, delay=90):
+    """진행중 방에 온라인 사람이 아무도 없으면 유예 후 삭제(그 전 재접속하면 취소)."""
+    if room.del_task and not room.del_task.done():
+        return
+    async def _del():
+        try:
+            await asyncio.sleep(delay)
+            if room.id in ROOMS and not any((not p.is_ai and p.online) for p in room.players):
+                ROOMS.pop(room.id, None)
+                await broadcast_lobby()
+        except asyncio.CancelledError:
+            pass
+    room.del_task = asyncio.create_task(_del())
+
+def cancel_room_delete(room):
+    if room.del_task and not room.del_task.done():
+        room.del_task.cancel()
+    room.del_task = None
+
 # ================= 방 떠나기 정리 =================
 async def leave_room(username):
     rid = USER_ROOM.get(username)
@@ -676,6 +696,9 @@ async def handle_msg(ws, data):
 
     if t == "getver":
         return await send(ws, {"t": "ver", "v": current_ver()})
+
+    if t == "ping":
+        return await send(ws, {"t": "pong"})
 
     # ---- 인증 ----
     if t == "register":
@@ -728,6 +751,7 @@ async def handle_msg(ws, data):
             if seat >= 0:
                 room.players[seat].online = True
                 room.players[seat].ws = ws
+                cancel_room_delete(room)
                 log_room(room, f'{uid} 재접속')
                 await broadcast_room(room)
                 return
@@ -756,6 +780,7 @@ async def handle_msg(ws, data):
             if seat >= 0:
                 room.players[seat].online = True
                 room.players[seat].ws = ws
+                cancel_room_delete(room)
                 await broadcast_room(room)
                 return
         return await send_lobby(ws)
@@ -769,6 +794,22 @@ async def handle_msg(ws, data):
         if not ws.get("is_admin"):
             return await send(ws, {"t": "err", "msg": "관리자 전용"})
         return await send(ws, {"t": "adminData", **(await admin_data())})
+
+    if t == "sync":   # 앱 복귀 등: 최신 상태 즉시 재전송 + 온라인 복구
+        if ws.get("is_admin"):
+            return await send(ws, {"t": "adminData", **(await admin_data())})
+        rid = USER_ROOM.get(uid)
+        room = ROOMS.get(rid) if rid else None
+        if room:
+            seat = room.seat_of(uid)
+            if seat >= 0 and not room.players[seat].online:
+                room.players[seat].online = True
+                room.players[seat].ws = ws
+                cancel_room_delete(room)
+            await broadcast_room(room)
+        else:
+            await send_lobby(ws)
+        return
 
     if t == "lobby":
         return await send_lobby(ws)
@@ -939,7 +980,7 @@ async def handle_msg(ws, data):
 
 
 async def ws_handler(request):
-    ws = web.WebSocketResponse(heartbeat=25)
+    ws = web.WebSocketResponse(heartbeat=10)
     await ws.prepare(request)
     ws["user"] = None
     await send(ws, {"t": "ver", "v": current_ver()})  # 버전 알림(자동 업데이트)
@@ -971,7 +1012,7 @@ async def ws_handler(request):
                     await broadcast_room(room)
                     schedule_ai(room)
                     if not any((not p.is_ai and p.online) for p in room.players):
-                        ROOMS.pop(rid, None)
+                        schedule_room_delete(room)   # 바로 삭제 않고 유예(재접속 대기)
             await broadcast_lobby()
     return ws
 

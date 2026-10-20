@@ -592,19 +592,38 @@ function checkVer(v){
   try{sessionStorage.setItem("lexio_ver",v);}catch(e){}
   location.replace(location.pathname+"?v="+encodeURIComponent(v)); // 캐시 무시하고 최신 로드
 }
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden) send({t:"getver"}); });
 
 /* ========== 연결 ========== */
+let lastRecv=Date.now();
 function connect(){
   const proto=location.protocol==="https:"?"wss":"ws";
-  ws=new WebSocket(proto+"://"+location.host+"/ws");
-  ws.onopen=()=>{ setStatus(true); if(token) send({t:"resume",token}); };
+  try{ ws=new WebSocket(proto+"://"+location.host+"/ws"); }catch(e){ scheduleReconnect(); return; }
+  lastRecv=Date.now();
+  ws.onopen=()=>{ setStatus(true); lastRecv=Date.now(); if(token) send({t:"resume",token}); };
   ws.onclose=()=>{ setStatus(false); scheduleReconnect(); };
   ws.onerror=()=>setStatus(false);
-  ws.onmessage=e=>{ let m; try{m=JSON.parse(e.data);}catch(_){return;} onMsg(m); };
+  ws.onmessage=e=>{ lastRecv=Date.now(); let m; try{m=JSON.parse(e.data);}catch(_){return;} onMsg(m); };
 }
-function scheduleReconnect(){ if(reconnectTimer)return; reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect();},1500); }
-function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(o)); }
+function reconnectNow(){ if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;} try{if(ws)ws.close();}catch(e){} connect(); }
+function scheduleReconnect(){ if(reconnectTimer)return; reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect();},1200); }
+function send(o){ if(ws&&ws.readyState===1){ try{ws.send(JSON.stringify(o));}catch(e){} } }
+/* 하트비트: 죽은 연결 감지 → 재연결 (모바일 멈춤 방지) */
+setInterval(()=>{
+  if(ws && ws.readyState===1){
+    send({t:"ping"});
+    if(Date.now()-lastRecv > 20000){ try{ws.close();}catch(e){} }  // 20초간 무응답 = 끊김
+  } else if(!ws || ws.readyState===3){
+    scheduleReconnect();
+  }
+},7000);
+/* 앱 복귀(화면 켜짐/탭 전환) 시 즉시 재연결 + 상태 동기화 */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden) return;
+  if(!ws || ws.readyState!==1){ reconnectNow(); }
+  else { lastRecv=Date.now(); send({t:"getver"}); send({t:"sync"}); }
+});
+window.addEventListener("online",()=>{ if(!ws||ws.readyState!==1) reconnectNow(); });
+window.addEventListener("pageshow",()=>{ if(!ws||ws.readyState!==1) reconnectNow(); });
 function setStatus(on){ const s=document.getElementById("status"); s.textContent=on?"●연결됨":"●연결끊김"; s.className="status "+(on?"on":"off"); }
 
 /* ========== 메시지 ========== */
