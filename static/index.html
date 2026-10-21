@@ -212,6 +212,18 @@
   tr.meRow{background:rgba(255,210,74,.08);}
   td.pos{color:var(--good);font-weight:800;} td.neg{color:var(--bad);font-weight:800;}
   .foot{text-align:center;color:var(--mut);font-size:11px;margin:10px 0;}
+  /* 라운드 종료: 승리 패 / 남은 패 */
+  .winplay{background:rgba(255,210,74,.09);border:1px solid #4a3f1e;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;}
+  .wp-label{font-size:13px;color:var(--txt);margin-bottom:8px;} .wp-label b{color:var(--accent);}
+  .wp-tiles{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;}
+  .hb-title{font-weight:800;margin:12px 0 4px;font-size:14px;color:var(--mut);}
+  .handrow{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .hr-name{font-size:12.5px;font-weight:700;min-width:76px;}
+  .hr-name .hr-cnt{color:var(--mut);font-weight:400;font-size:11px;}
+  .hr-tiles{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+  .hr-win{color:var(--good);font-weight:800;font-size:13px;}
+  #winPlayBox .tile,#handsBox .tile{width:30px!important;height:40px!important;border-radius:7px;}
+  #winPlayBox .tile .num,#handsBox .tile .num{font-size:17px!important;}
   /* 게임 설명 */
   .help{font-size:13.5px;line-height:1.6;color:var(--txt);}
   .help p{margin:4px 0 10px;} .help ul{margin:4px 0 10px;padding-left:20px;} .help li{margin:3px 0;}
@@ -404,7 +416,9 @@
   <div class="box">
     <h2 id="scoreTitle">라운드 종료</h2>
     <div class="win" id="winText"></div>
+    <div id="winPlayBox"></div>
     <table id="scoreTable"></table>
+    <div id="handsBox"></div>
     <div class="foot">숫자2 보유 시 남은 타일 × 2^(2의 개수)로 계산 후 1:1 정산 (합계 0)</div>
     <button class="btn p" id="nextBtn" style="margin-top:4px;">다음 라운드</button>
     <button class="btn s" id="toLobbyBtn" style="margin-top:8px;">대기실로</button>
@@ -994,6 +1008,31 @@ function showScore(lr){
       <td>${r.rem}</td><td>${r.eff}${tw}</td><td class="${cls}">${r.score>0?"+":""}${r.score}</td><td>${r.chips}</td></tr>`;
   });
   document.getElementById("scoreTable").innerHTML=html;
+  // 이긴 사람이 낸 패
+  const wpb=document.getElementById("winPlayBox"); wpb.innerHTML="";
+  if(lr.winPlay && lr.winPlay.tiles && lr.winPlay.tiles.length){
+    const t=document.createElement("div"); t.className="winplay";
+    t.innerHTML=`<div class="wp-label">🏆 ${esc(lr.winnerName)} 이(가) <b>${esc(lr.winPlay.catKr)}</b>(으)로 승리!</div>`;
+    const tr=document.createElement("div"); tr.className="wp-tiles";
+    lr.winPlay.tiles.forEach(x=>tr.appendChild(tileEl(x,true,"")));
+    t.appendChild(tr); wpb.appendChild(t);
+  }
+  // 각자 들고 있던 남은 패
+  const hb=document.getElementById("handsBox"); hb.innerHTML="";
+  const anyHand=lr.rows.some(r=>r.hand&&r.hand.length);
+  if(anyHand){
+    const title=document.createElement("div"); title.className="hb-title"; title.textContent="🃏 남은 패"; hb.appendChild(title);
+    lr.rows.forEach(r=>{
+      const row=document.createElement("div"); row.className="handrow";
+      const nm=document.createElement("div"); nm.className="hr-name";
+      nm.innerHTML=`${esc(r.name)}${r.seat===mySeat?" 👤":""} <span class="hr-cnt">${r.hand.length?r.hand.length+"장":"✅ 다 냄"}</span>`;
+      row.appendChild(nm);
+      const tr=document.createElement("div"); tr.className="hr-tiles";
+      if(r.hand.length){ r.hand.forEach(x=>tr.appendChild(tileEl(x,true,""))); }
+      else { const w=document.createElement("span"); w.className="hr-win"; w.textContent="🎉 승리"; tr.appendChild(w); }
+      row.appendChild(tr); hb.appendChild(row);
+    });
+  }
   const host=amHost();
   document.getElementById("nextBtn").style.display=host?"block":"none";
   document.getElementById("toLobbyBtn").style.display=host?"block":"none";

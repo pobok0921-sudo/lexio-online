@@ -577,10 +577,17 @@ def end_round(room, winner):
         room.players[r["seat"]].chips += r["score"]
     rows_sorted = sorted(rows, key=lambda r: r["eff"])
     room.phase = "roundend"
+    # 이긴 사람이 마지막에 낸 패(승리 패)
+    win_play = None
+    if room.cur and room.cur.get("by") == winner:
+        win_play = {"tiles": public_tiles(room.cur["tiles"]),
+                    "cat": room.cur["cat"], "catKr": COMBO_KR[room.cur["cat"]]}
     room.last_round = {
         "winner": winner, "winnerName": room.players[winner].name,
+        "winPlay": win_play,
         "rows": [{"name": r["name"], "seat": r["seat"], "rem": r["rem"], "twos": r["twos"],
-                  "eff": r["eff"], "score": r["score"], "chips": room.players[r["seat"]].chips}
+                  "eff": r["eff"], "score": r["score"], "chips": room.players[r["seat"]].chips,
+                  "hand": public_tiles(room.players[r["seat"]].hand)}
                  for r in rows_sorted],
     }
     log_room(room, f'🎉 <b>{room.players[winner].name}</b> 승리! 라운드 종료')
