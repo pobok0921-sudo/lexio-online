@@ -315,10 +315,10 @@
     <div id="board"><div id="boardLabel"></div><div id="boardTiles"></div><div id="boardInfo"></div></div>
     <div class="card" id="handWrap">
       <div class="hd"><div class="t">내 손패 <b id="handCount">0</b>장</div>
+        <button class="btn s" id="sortBtn" style="width:auto;padding:6px 14px;font-size:13px;">↕ 정렬</button>
         <div class="t" style="color:var(--mut)">칩 <b id="myChip">0</b></div></div>
       <div id="hand"></div>
       <div id="controls">
-        <button class="btn s sortb" id="sortBtn">정렬</button>
         <button class="btn g" id="playBtn">내기</button>
         <button class="btn r" id="passBtn">패스</button>
       </div>
@@ -630,18 +630,21 @@ setInterval(()=>{
     scheduleReconnect();
   }
 },7000);
-/* 앱 복귀(화면 켜짐/탭 전환) 시 즉시 재연결 + 상태 동기화 */
+/* 앱 복귀(화면 켜짐/탭 전환) 시 재연결 + 상태 동기화 (연결 중 소켓은 방해하지 않음) */
+function needReconnect(){ return !ws || ws.readyState>=2; } // null/CLOSING/CLOSED
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden) return;
-  if(!ws || ws.readyState!==1){ reconnectNow(); }
-  else { lastRecv=Date.now(); send({t:"getver"}); send({t:"sync"}); }
+  if(needReconnect()){ reconnectNow(); }
+  else if(ws.readyState===1){ lastRecv=Date.now(); send({t:"getver"}); send({t:"sync"}); }
 });
-window.addEventListener("online",()=>{ if(!ws||ws.readyState!==1) reconnectNow(); });
-window.addEventListener("pageshow",()=>{ if(!ws||ws.readyState!==1) reconnectNow(); });
+window.addEventListener("online",()=>{ if(needReconnect()) reconnectNow(); });
+window.addEventListener("pageshow",()=>{ if(needReconnect()) reconnectNow(); });
 function setStatus(on){ const s=document.getElementById("status"); s.textContent=on?"●연결됨":"●연결끊김"; s.className="status "+(on?"on":"off"); }
 
 /* ========== 메시지 ========== */
+window.addEventListener("error",e=>{ try{console.error("앱 오류:",e.message,e.filename+":"+e.lineno);}catch(_){} });
 function onMsg(m){
+ try{
   switch(m.t){
     case "err": toast(m.msg,false); break;
     case "ok": toast(m.msg,true); if(authMode==="register"){authMode="login";renderAuth();} break;
@@ -660,6 +663,7 @@ function onMsg(m){
     case "voice": playVoice(m); break;
     case "ver": checkVer(m.v); break;
   }
+ }catch(err){ try{console.error("onMsg 오류:",err, "msg:",m&&m.t);}catch(_){} }
 }
 /* ========== 관리자 ========== */
 let isAdmin=false;
@@ -929,8 +933,9 @@ function renderGame(){
   bt.innerHTML="";
   const turnName=ROOM.players[ROOM.turn]?ROOM.players[ROOM.turn].name:"";
   if(ROOM.cur){
-    bl.textContent=`${ROOM.players[ROOM.cur.by].name} 이(가) 낸 패 · ${ROOM.cur.catKr}`;
-    ROOM.cur.tiles.forEach(t=>bt.appendChild(tileEl(t,true,"dealin")));
+    const byP=ROOM.players[ROOM.cur.by];
+    bl.textContent=`${byP?esc(byP.name):"?"} 이(가) 낸 패 · ${ROOM.cur.catKr||""}`;
+    (ROOM.cur.tiles||[]).forEach(t=>bt.appendChild(tileEl(t,true,"dealin")));
     bi.textContent=myTurn?"▶ 더 높은 패를 내거나 패스하세요":`${turnName} 차례`;
   }else{
     bl.textContent=myTurn?(!ROOM.firstMove?"당신이 선! 원하는 조합으로 자유롭게 시작":"당신 차례 — 새 조합으로 시작"):`${turnName} 차례 — 새 조합 시작`;
