@@ -232,7 +232,8 @@ def classify_made(tiles, maxnum, strset):
         tr = [n for n in cnt if cnt[n] == 3][0]
         return {"count": 5, "cat": "fullhouse", "key": [3, nrank(tr, maxnum)]}
     if same_color:
-        return {"count": 5, "cat": "flush", "key": [2, crank(tiles[0]["color"])] + ranks_desc}
+        # 플러쉬: 가장 높은 숫자 우선(숫자2 포함이 최강), 숫자 동일 시 색상으로 최종 비교
+        return {"count": 5, "cat": "flush", "key": [2] + ranks_desc + [crank(tiles[0]["color"])]}
     if straight:
         return {"count": 5, "cat": "straight", "key": [1] + ranks_desc + [crank(top["color"])]}
     return None

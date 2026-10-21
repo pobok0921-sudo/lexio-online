@@ -457,7 +457,7 @@ function classifyMade(tiles){
   if(st&&sc)return{count:5,cat:"straightflush",key:[5,...rd,crank(top.color)]};
   if(vals[0]===4){const q=+Object.keys(cnt).find(n=>cnt[n]===4);return{count:5,cat:"fourkind",key:[4,nrank(q)]};}
   if(vals[0]===3&&vals[1]===2){const tr=+Object.keys(cnt).find(n=>cnt[n]===3);return{count:5,cat:"fullhouse",key:[3,nrank(tr)]};}
-  if(sc)return{count:5,cat:"flush",key:[2,crank(tiles[0].color),...rd]};
+  if(sc)return{count:5,cat:"flush",key:[2,...rd,crank(tiles[0].color)]};
   if(st)return{count:5,cat:"straight",key:[1,...rd,crank(top.color)]};
   return null;
 }
