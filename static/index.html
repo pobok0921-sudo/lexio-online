@@ -153,6 +153,13 @@
   .opp .act.pass{color:var(--bad);}
   .miniback{display:inline-block;width:8px;height:12px;border-radius:2px;
     background:linear-gradient(135deg,#4a5c80,#334364);border:1px solid #5c719a;margin:1px .5px;}
+  /* 남은 패 카드 부채(뒷면) */
+  .handfan{display:flex;justify-content:center;align-items:flex-end;height:20px;margin:3px 0 1px;}
+  .handfan.empty{color:var(--mut);font-size:10px;align-items:center;}
+  .handfan .fc{width:11px;height:18px;border-radius:2px;flex:0 0 auto;
+    background:linear-gradient(135deg,#5a6ea0,#2c3b5e);border:1px solid #6f86b8;
+    box-shadow:0 1px 2px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.2);}
+  .opp.turn .handfan .fc{border-color:#caa63e;background:linear-gradient(135deg,#6a5a2e,#3a2f12);}
   /* 플레이어 캐릭터 아바타 */
   .avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
     border:2px solid rgba(255,255,255,.4);box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 1px 2px rgba(255,255,255,.45);
@@ -455,6 +462,14 @@ function avatarHTML(name,size){
   const h=hashStr(name), em=AVATARS[h%AVATARS.length], bg=AV_BG[(Math.floor(h/7))%AV_BG.length];
   size=size||40;
   return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.56)}px;background:linear-gradient(135deg,${bg[0]},${bg[1]})">${em}</span>`;
+}
+/* 남은 패 개수를 카드 뒷면 부채로 시각화 (적으면 넓게, 많으면 촘촘) */
+function handFan(count){
+  if(count<=0) return `<div class="handfan empty">없음</div>`;
+  const n=Math.min(count,16);            // 많으면 16장까지만 표시(정확한 수는 숫자로)
+  let s=`<div class="handfan">`;          // 개수가 많을수록 부채가 넓어짐(카드당 보이는 폭 4px)
+  for(let k=0;k<n;k++){ s+=`<span class="fc" style="margin-left:${k===0?0:-7}px"></span>`; }
+  return s+`</div>`;
 }
 // 숫자 2 전용 화려한 금색 장식 프레임
 const ORN_SVG='<svg viewBox="0 0 100 136" preserveAspectRatio="none">'
@@ -942,7 +957,8 @@ function renderGame(){
     d.className="opp"+(ROOM.turn===i?" turn":"")+(!p.online&&!p.isAI?" off":"");
     d.innerHTML=`${avatarHTML(p.name,46)}
       <div class="nm">${esc(p.name)}${p.isAI?" 🤖":""}${ROOM.turn===i?" ⏳":""}${p.name===ROOM.host?" 👑":""}</div>
-      <div class="cntbig">🃏 남은 <b>${p.handCount}</b>장</div>
+      ${handFan(p.handCount)}
+      <div class="cntbig">남은 <b>${p.handCount}</b>장</div>
       <div class="chip">칩 ${p.chips}</div><div class="act${p.last==='패스'?' pass':''}">${esc(p.last||"")}</div>`;
     opps.appendChild(d);
   });
