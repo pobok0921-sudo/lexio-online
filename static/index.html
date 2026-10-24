@@ -153,6 +153,15 @@
   .opp .act.pass{color:var(--bad);}
   .miniback{display:inline-block;width:8px;height:12px;border-radius:2px;
     background:linear-gradient(135deg,#4a5c80,#334364);border:1px solid #5c719a;margin:1px .5px;}
+  /* 플레이어 캐릭터 아바타 */
+  .avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
+    border:2px solid rgba(255,255,255,.4);box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 1px 2px rgba(255,255,255,.45);
+    line-height:1;flex:0 0 auto;user-select:none;overflow:hidden;}
+  .opp .avatar{margin:0 auto 3px;}
+  .opp.turn .avatar{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,210,74,.5),0 2px 6px rgba(0,0,0,.4);animation:avbob 1s ease-in-out infinite;}
+  @keyframes avbob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+  .seat .avatar{margin:0;}
+  .meAv{vertical-align:middle;margin-right:7px;}
 
   #board{position:relative;background:
       radial-gradient(130% 100% at 50% 0%,#1a5235 0%,#114026 55%,#0c2e1a 100%);
@@ -218,7 +227,7 @@
   .wp-tiles{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;}
   .hb-title{font-weight:800;margin:12px 0 4px;font-size:14px;color:var(--mut);}
   .handrow{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
-  .hr-name{font-size:12.5px;font-weight:700;min-width:76px;}
+  .hr-name{font-size:12.5px;font-weight:700;min-width:90px;display:flex;align-items:center;gap:5px;}
   .hr-name .hr-cnt{color:var(--mut);font-weight:400;font-size:11px;}
   .hr-tiles{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
   .hr-win{color:var(--good);font-weight:800;font-size:13px;}
@@ -261,7 +270,7 @@
 <div id="lobbyScreen" class="hidden">
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <div><b id="meName">-</b> <span class="sub">🏆 <span id="meWins">0</span></span></div>
+      <div style="display:flex;align-items:center;"><span id="meAvatar" class="meAv"></span><div><b id="meName">-</b> <span class="sub">🏆 <span id="meWins">0</span></span></div></div>
       <div style="display:flex;gap:6px;">
         <button class="btn s" id="helpBtn" style="width:auto;padding:8px 12px;font-size:13px;">📖 게임 설명</button>
         <button class="btn s" id="logoutBtn" style="width:auto;padding:8px 12px;font-size:13px;">로그아웃</button>
@@ -314,7 +323,7 @@
     <div id="opps"></div>
     <div id="board"><div id="boardLabel"></div><div id="boardTiles"></div><div id="boardInfo"></div></div>
     <div class="card" id="handWrap">
-      <div class="hd"><div class="t">내 손패 <b id="handCount">0</b>장</div>
+      <div class="hd"><div class="t" style="display:flex;align-items:center;"><span id="myAvatar" class="meAv"></span>내 손패 <b id="handCount" style="margin:0 2px">0</b>장</div>
         <button class="btn s" id="sortBtn" style="width:auto;padding:6px 14px;font-size:13px;">↕ 정렬</button>
         <div class="t" style="color:var(--mut)">칩 <b id="myChip">0</b></div></div>
       <div id="hand"></div>
@@ -438,6 +447,15 @@ const ICON_SVG={
   moon:'<svg viewBox="0 0 48 48"><path fill="currentColor" d="M32 4.5A20 20 0 1 0 45.5 40 16.5 16.5 0 0 1 32 4.5z"/></svg>',
   sun:'<svg viewBox="0 0 48 48" fill="currentColor"><circle cx="24" cy="24" r="10"/><g stroke="currentColor" stroke-width="4.6" stroke-linecap="round"><path d="M24 2.5v7M24 38.5v7M2.5 24h7M38.5 24h7M9 9l5 5M34 34l5 5M39 9l-5 5M14 34l-5 5"/></g></svg>'
 };
+// 플레이어 캐릭터 아바타 (이름 기반 고정)
+const AVATARS=["🧑‍🦰","👩‍🦱","🧔","👨‍🦳","👵","👧","🧒","🧑‍🦱","🧙‍♂️","🦸‍♀️","🕵️","👮","👨‍🚀","🧛","🤠","👸","🥷","🧑‍🎤","👨‍🍳","👨‍⚖️","🦊","🐯","🦁","🐼","🐵","🐸","🦉","🐶","🐱","🐻","🐨","🐰"];
+const AV_BG=[["#ff9a9e","#f6416c"],["#a18cd1","#6a3ff5"],["#84fab0","#0ba360"],["#fad961","#f76b1c"],["#5ee7df","#1a9bd1"],["#f093fb","#b721ff"],["#f6d365","#fda085"],["#30cfd0","#1a4ba8"],["#ffb199","#ff5e62"],["#43e97b","#22b37a"],["#4facfe","#1f6fe0"],["#c471f5","#7b2ff7"]];
+function hashStr(s){let h=0;s=s||"?";for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
+function avatarHTML(name,size){
+  const h=hashStr(name), em=AVATARS[h%AVATARS.length], bg=AV_BG[(Math.floor(h/7))%AV_BG.length];
+  size=size||40;
+  return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.56)}px;background:linear-gradient(135deg,${bg[0]},${bg[1]})">${em}</span>`;
+}
 // 숫자 2 전용 화려한 금색 장식 프레임
 const ORN_SVG='<svg viewBox="0 0 100 136" preserveAspectRatio="none">'
  +'<defs><linearGradient id="og2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4bd"/><stop offset=".35" stop-color="#f3c552"/><stop offset=".65" stop-color="#b8882b"/><stop offset="1" stop-color="#f7d062"/></linearGradient></defs>'
@@ -655,6 +673,7 @@ function onMsg(m){
       isAdmin=!!m.admin;
       document.getElementById("meName").textContent=me;
       document.getElementById("meWins").textContent=m.wins||0;
+      try{document.getElementById("meAvatar").innerHTML=avatarHTML(me,30);}catch(e){}
       if(isAdmin) showScreen("admin");
       break;
     case "adminData": isAdmin=true; renderAdmin(m); showScreen("admin"); break;
@@ -888,10 +907,9 @@ function renderWait(){
   ROOM.players.forEach((p,i)=>{
     const d=document.createElement("div");
     d.className="seat"+(p.isAI?" ai":"")+(p.name===ROOM.host?" host":"");
-    const initial=p.isAI?"🤖":(p.name[0]||"?");
     let x=(amHost()&&p.isAI)?`<button class="x" data-seat="${i}">제거</button>`:"";
     const tag=p.name===ROOM.host?"방장":p.isAI?("컴퓨터 · "+GR_KR[gr]):"플레이어";
-    d.innerHTML=`<div class="av">${esc(initial)}</div><div><div class="nm">${esc(p.name)}</div>
+    d.innerHTML=`${avatarHTML(p.name,38)}<div><div class="nm">${esc(p.name)}${p.isAI?" 🤖":""}</div>
       <div class="tag">${tag}${!p.online&&!p.isAI?" (오프라인)":""}</div></div>${x}`;
     seats.appendChild(d);
   });
@@ -922,9 +940,8 @@ function renderGame(){
     if(i===mySeat)return;
     const d=document.createElement("div");
     d.className="opp"+(ROOM.turn===i?" turn":"")+(!p.online&&!p.isAI?" off":"");
-    let backs="";const show=Math.min(p.handCount,13);for(let k=0;k<show;k++)backs+='<span class="miniback"></span>';
-    d.innerHTML=`<div class="nm">${esc(p.name)}${ROOM.turn===i?" ⏳":""}${p.name===ROOM.host?" 👑":""}</div>
-      <div style="margin:3px 0">${backs}</div>
+    d.innerHTML=`${avatarHTML(p.name,46)}
+      <div class="nm">${esc(p.name)}${p.isAI?" 🤖":""}${ROOM.turn===i?" ⏳":""}${p.name===ROOM.host?" 👑":""}</div>
       <div class="cntbig">🃏 남은 <b>${p.handCount}</b>장</div>
       <div class="chip">칩 ${p.chips}</div><div class="act${p.last==='패스'?' pass':''}">${esc(p.last||"")}</div>`;
     opps.appendChild(d);
@@ -944,6 +961,7 @@ function renderGame(){
   const myP=ROOM.players[mySeat];
   document.getElementById("handCount").textContent=myHand.length;
   document.getElementById("myChip").textContent=myP?myP.chips:0;
+  try{document.getElementById("myAvatar").innerHTML=avatarHTML(myP?myP.name:me,26);}catch(e){}
   sortHand();
   const hand=document.getElementById("hand");hand.innerHTML="";
   const ids=new Set(myHand.map(t=>t.id));[...selected].forEach(id=>{if(!ids.has(id))selected.delete(id);});
@@ -1030,7 +1048,7 @@ function showScore(lr){
     lr.rows.forEach(r=>{
       const row=document.createElement("div"); row.className="handrow";
       const nm=document.createElement("div"); nm.className="hr-name";
-      nm.innerHTML=`${esc(r.name)}${r.seat===mySeat?" 👤":""} <span class="hr-cnt">${r.hand.length?r.hand.length+"장":"✅ 다 냄"}</span>`;
+      nm.innerHTML=`${avatarHTML(r.name,24)}<b>${esc(r.name)}</b>${r.seat===mySeat?" 👤":""} <span class="hr-cnt">${r.hand.length?r.hand.length+"장":"✅ 다 냄"}</span>`;
       row.appendChild(nm);
       const tr=document.createElement("div"); tr.className="hr-tiles";
       if(r.hand.length){ r.hand.forEach(x=>tr.appendChild(tileEl(x,true,""))); }
